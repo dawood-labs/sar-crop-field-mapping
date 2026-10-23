@@ -1,5 +1,8 @@
 # SAR crop field mapping
 
+> Second project in this repo: [`timeseries_crop_classifier_cane/`](timeseries_crop_classifier_cane/) - standing sugarcane at
+> province scale from a season of Sentinel-1 + Sentinel-2 (LightGBM time-series model + colour model, province GeoPackage).
+
 Field-level maps of **rice**, **sugarcane** and **cassava** for one district-sized area of interest (AOI), built
 mainly from **Sentinel-1 radar** (works through monsoon clouds) and checked / corrected with **Sentinel-2 optical**
 images where the sky is clear. The final product is one polygon per field with a class code, delivered as a
