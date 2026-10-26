@@ -1,5 +1,5 @@
 """Merge one district raster of every district of a province into a province raster, values as they are (no resampling:
-all districts share the 10 m EPSG:32648 grid). Overlap: a valid value beats nodata, cane (1) beats 0.
+all districts share the 10 m EPSG:32648 grid). Overlap: a valid value beats nodata, cane (1) beats 0. Clipped to the official province polygon.
 usage: python scripts/province_mosaic.py <Province> <rel path in the district folder> <out name>
   e.g. python scripts/province_mosaic.py province7 data/model/s2on_r2_oct_rn5/cane_map_2026.tif province7_cane_map_2026.tif
 """
@@ -27,6 +27,7 @@ for s in srcs:
     both = (w != nd) & (a != nd); conflict += int((both & (w != a)).sum())
     take = (a != nd) & ((w == nd) | (a == 1)); w[take] = a[take]
 prof = dict(srcs[0].profile, width=W, height=H, transform=Affine(res, 0, l, 0, -res, t), compress="deflate", predictor=2, BIGTIFF="IF_SAFER")
+out[~SP.province_mask(prov, out.shape, prof["transform"], prof["crs"])] = nd           # clip to the official province polygon
 dst = folder / name
 with rasterio.open(dst, "w", **prof) as d: d.write(out, 1)
 q = files[0].with_suffix(".qml")

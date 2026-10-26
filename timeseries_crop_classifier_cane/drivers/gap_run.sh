@@ -5,7 +5,7 @@
 # usage: AWS_ENV=<creds file> setsid nohup bash drivers/gap_run.sh "site:DES:ASC[:alias]" ... > logs/gap_run.log 2>&1 &
 #   e.g. "site51_2026:164:99" "site50_2026:164:26:a" "site19_2026:62:172:a"   (a = alias tracks to the model's)
 P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P
-export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=standing-cane-gaps DL_BLOCK=256
+export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=standing-cane-gaps DL_BLOCK=256 DL_S2_QA="" DL_CS_BANDS=cs_cdf   # only what the model + review images need
 for spec in "$@"; do IFS=: read n des asc al <<< "$spec"
   S=$(python scripts/site_paths.py dir $n); prov=$(basename $(dirname $S))
   export SC_ROOT=$S SC_AOI=$S/data/aoi/aoi.shp DL_S1_TRACKS="$des:DESCENDING,$asc:ASCENDING"

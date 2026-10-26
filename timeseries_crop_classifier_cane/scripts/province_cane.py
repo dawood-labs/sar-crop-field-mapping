@@ -3,6 +3,7 @@
    where two district AOIs overlap and disagree, sugarcane wins over cassava over none)
 2. clean the WHOLE province map with sieve_layer2.run (fill non-cane holes < SIZE px enclosed by cane only, drop isolated cane
    specks < SIZE px) -> sites/2026/<Province>/<prov>_class_2026_s<SIZE>.tif (+ .qml)
+2b. pixels outside the official province polygon (data/source/provinces.parquet) are set to nodata (clip)
 3. cane px (1) -> polygons (4-connected pixel edges, no smoothing), area_ac = polygon area in EPSG:32648 (UTM 48N, metres)
    / 4046.8564224, rounded to 3 decimals; polygons < MIN_AC dropped; one field only: area_ac
    -> sites/2026/<Province>/<prov>_sugarcane_2026.gpkg (layer sugarcane, + .qml, _meta.json)
@@ -47,6 +48,9 @@ def main(prov):
     t0 = time.time(); folder = SP.SITES / "2026" / prov; stem = prov.lower()
     sites = [p for p in SP.all_sites("*_2026") if p.parent == folder and (p / "data/model/layer2_final/class_2026.tif").exists()]
     a, prof, conflict = mosaic(sites); print(f"mosaic {a.shape} from {len(sites)} districts, overlap conflicts {conflict} px ({time.time() - t0:.0f} s)")
+    inside = SP.province_mask(prov, a.shape, prof["transform"], prof["crs"])       # clip to the official province polygon
+    clipped = int(((a != ND) & ~inside).sum()); a[~inside] = ND
+    print(f"clipped to the province boundary: {clipped * 100 / ACRE:,.0f} ac of district area outside the province removed")
     b = run(a, SIZE); print(f"cleaned ({time.time() - t0:.0f} s)")
     f = folder / f"{stem}_class_2026_s{SIZE}.tif"
     with rasterio.open(f, "w", **prof) as d: d.write(b, 1)

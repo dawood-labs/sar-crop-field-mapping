@@ -53,7 +53,8 @@ S1_BANDS = ["VV", "VH"]                                      # user: no incidenc
 S2_BANDS = os.environ.get("DL_S2_BANDS", "B2,B3,B4,B5,B8").split(",")   # chips only: B3,B4,B8
 S2X_BANDS = ["B6", "B7", "B8A", "B11", "B12"]       # red-edge + SWIR (20 m, resampled nearest to the 10 m grid)
 S2_QA_BANDS = [b for b in os.environ.get("DL_S2_QA", "MSK_CLDPRB,SCL,QA60,MSK_CLASSI_OPAQUE,MSK_CLASSI_CIRRUS").split(",") if b]
-CLOUD_BANDS = ["cs", "cs_cdf"] + S2_QA_BANDS
+CS_BANDS = os.environ.get("DL_CS_BANDS", "cs,cs_cdf").split(",")      # "cs_cdf" alone = only the clear mask the pipeline uses
+CLOUD_BANDS = CS_BANDS + S2_QA_BANDS
 S2_DIR = os.environ.get("DL_S2_DIR", "s2")   # e.g. s2_b2 to fetch one missing band into its own folder
 CRS, RES = "EPSG:32648", 10
 BLOCK = int(os.environ.get("DL_BLOCK", "1024"))   # smaller blocks (e.g. 256) for thin / scattered AOIs
@@ -171,7 +172,10 @@ def s2_jobs(aoi_ee):
         m = day.select("cs_cdf").mosaic().lt(0.6).rename("c")
         v = m.reduceRegion(ee.Reducer.mean(), aoi_ee, 100, maxPixels=1e9).get("c")
         return ee.Algorithms.If(day.size().gt(0), v, -1)
-    cf = dict(zip(dates, ee.List(dates).map(frac).getInfo()))
+    cf = {}
+    n = int(os.environ.get("DL_CLOUD_BATCH", "0")) or len(dates)        # >0: dates per request (big / scattered AOIs hit the
+    for k in range(0, len(dates), n):                                     # Earth Engine user memory limit in one request)
+        part = dates[k:k + n]; cf.update(zip(part, ee.List(part).map(frac).getInfo()))
     for d in dates:
         if cf[d] is None or cf[d] < 0:               # no Cloud Score+: mean tile CLOUDY_PIXEL_PERCENTAGE
             cf[d] = float(np.mean([ccp[i] for i in info if i[:8] == d])) / 100
@@ -226,7 +230,8 @@ def run_job(job, grid, inside):
                   {"date": job["date"], "tile_cloudy_pixel_pct": job["tile_cloud_pct"], "cs_missing": str(int(cs_missing)),
                    "units": "cs/cs_cdf = Cloud Score+ x100 (higher = clearer); MSK_CLDPRB 0-100; SCL ESA classes; QA60/MSK_CLASSI_* bitmasks"})
         valid = (arr[0] > 0)[inside]
-        clear = ((csa[1] != 65535) & (csa[1] >= 60) & (arr[0] > 0))[inside]
+        k = CLOUD_BANDS.index("cs_cdf")
+        clear = ((csa[k] != 65535) & (csa[k] >= 60) & (arr[0] > 0))[inside]
         row = {"sensor": "s2", "track": "orbit18", "date": job["date"], "n_scenes": len(job["ids"]),
                "valid_frac_aoi": round(float(valid.mean()), 4), "clear_frac_aoi": round(float(clear.mean()), 4),
                "tile_cloudy_pixel_pct": job["tile_cloud_pct"],
@@ -252,7 +257,10 @@ def main():
     grid, inside, aoi = make_grid()
     INSIDE = inside
     (PROJ / "data/manifest").mkdir(parents=True, exist_ok=True)
-    aoi_ee = ee.Geometry(aoi.to_crs(4326).geometry.unary_union.__geo_interface__)
+    g = aoi.geometry.union_all()
+    tol = float(os.environ.get("DL_AOI_SIMPLIFY", "0"))                  # metres; only for the cloud % / scene search, not the grid
+    if tol: g = g.buffer(tol).simplify(tol)
+    aoi_ee = ee.Geometry(__import__("geopandas").GeoSeries([g], crs=aoi.crs).to_crs(4326).iloc[0].__geo_interface__)
     jobs = []
     if a.only in (None, "s1"):
         jobs += s1_jobs(aoi_ee)

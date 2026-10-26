@@ -46,6 +46,18 @@ def from_flat(rel) -> Path:
     return PROJ / rel
 
 
+def province_mask(prov: str, shape, transform, crs):
+    """True inside the official province polygon (data/source/provinces.parquet, ADM1_EN = folder name with spaces) on a grid.
+    District AOIs (GAUL) do not match the province edge, so province products are clipped with this (user, 23 Oct 2026)."""
+    import geopandas as gpd
+    from rasterio.features import rasterize
+    pv = gpd.read_parquet(PROJ / "data/source/provinces.parquet")
+    hit = pv[pv.ADM1_EN.str.replace(" ", "_").str.lower() == prov.lower()]
+    if hit.empty: raise ValueError(f"province {prov} not in provinces.parquet")
+    g = hit.to_crs(crs).geometry
+    return rasterize([(x, 1) for x in g], out_shape=shape, transform=transform, dtype="uint8").astype(bool)
+
+
 def year_of(site: str) -> str:
     m = re.search(r"_(20\d\d)(?:_|$)", site)
     return m.group(1) if m else "other"
