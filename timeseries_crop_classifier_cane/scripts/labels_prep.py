@@ -35,7 +35,7 @@ def main():
     with rasterio.open(PROJ / "data/grid/index.tif") as g:
         prof, tr, shape = g.profile.copy(), g.transform, g.shape
         inside = g.read(2).astype(bool)
-    aoi = gpd.read_file(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site99.shp")
+    aoi = gpd.read_file(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site119.shp")
     c = gpd.read_parquet(Path(__file__).resolve().parents[1] / "data/source/cane2025.parquet").to_crs(prof["crs"])
     c = c[c.intersects(aoi.to_crs(prof["crs"]).union_all().buffer(100))].reset_index(drop=True)
     c["poly_id"] = np.arange(1, len(c) + 1, dtype="int32")

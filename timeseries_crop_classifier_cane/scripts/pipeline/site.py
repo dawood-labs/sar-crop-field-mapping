@@ -151,7 +151,7 @@ def stage_download(p: Params, site: Site, root: Path, env: dict, prefix: str):
                 log(f"download {only} attempt {attempt}: {str(e).splitlines()[0]}")
         else:
             raise RuntimeError(f"download {only} of {site.name} still has failed files after 3 attempts (see {lf})")
-    files = S3.upload_dir(root, prefix, UPLOAD_DOWNLOAD)
+    files = S3.upload_dir(root, prefix, UPLOAD_DOWNLOAD); upload_logs(root, prefix)
     st.mark(files, t0, params={"season": [p.season_start, p.season_end], "tracks": [site.des, site.asc]})
     log(f"download: done in {(time.time() - t0) / 60:.0f} min, {len(files)} files on S3")
 
@@ -194,11 +194,19 @@ def stage_process(p: Params, site: Site, root: Path, env: dict, prefix: str):
         files = S3.upload_dir(root, prefix, UPLOAD_PROCESS)
     st.mark(files, t0, tiles=tiles, models={"layer1": p.layer1_model, "colour": p.colour_model})
     log(f"process: done in {(time.time() - t0) / 60:.0f} min, {len(files)} files on S3")
-    if not p.keep_local:                        # heavy inputs are on S3 now; small outputs stay for the province step
-        for d in ("data/raw", "data/stacks"):
-            shutil.rmtree(root / d, ignore_errors=True)
+    upload_logs(root, prefix)
+    if not p.keep_local:                        # S3 is the storage: the pod keeps nothing of a finished site but its logs
+        shutil.rmtree(root / "data", ignore_errors=True)
         for tn in tiles:
-            shutil.rmtree(SP.site_dir(tn) / "data/stacks", ignore_errors=True)
+            shutil.rmtree(SP.site_dir(tn) / "data", ignore_errors=True)
+
+
+def upload_logs(root: Path, prefix: str):
+    """The site's logs next to its data on S3 (<prefix>/logs/), so a run on another pod can be read later."""
+    try:
+        S3.upload_dir(root, prefix, ["logs"])
+    except Exception as e:                      # a log upload never fails the stage
+        log(f"log upload skipped: {str(e)[:120]}")
 
 
 def run_site(p: Params, site: Site):

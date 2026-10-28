@@ -3,7 +3,7 @@ clear late-season date (>= 10 Sep 2026) of their districts, so the model sees th
 Then applied to all 19 districts (per pixel: latest clear date among the district's 3 clearest late-season images).
   python scripts/colour_multi.py train          -> sites/layer2/colour_model_v8.joblib + leave-one-date-out report
   python scripts/colour_multi.py apply [site..] -> <site>/data/model/cassava_colour_v8/ {cassava_prob, class (1/281), class3, colour.json}
-  python scripts/colour_multi.py check          -> agreement with the user's 40 verified squares in site66
+  python scripts/colour_multi.py check          -> agreement with the user's 40 verified squares in site86
 """
 import json, os, sys, warnings
 from pathlib import Path
@@ -15,7 +15,7 @@ import site_paths as SP
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent)); import qgis_style as Q  # noqa: E402
 P = Path(__file__).resolve().parents[1]; COLS = ["B5", "B3", "B2", "B5/B3", "B3/B2", "hue", "sat", "val"]; ACRE = 0.0247105; START = "20260910"
-SITE_DIR = {"site66": "site66_2026", "Site111": "site111_2026", "Site93": "site93_2026", "site109": "site109_2026", "site82": "bench_site82_2026"}
+SITE_DIR = {"site86": "site86_2026", "Site131": "site131_2026", "Site113": "site113_2026", "site129": "site129_2026", "site102": "bench_site102_2026"}
 TAG = os.environ.get("COLOUR_TAG", "v8")            # v8 = cane vs cassava (layer2_final); v9 = cane vs NON-cane (cassava + rice + other; user 20 Oct 2026)
 NONCANE = 281 if TAG == "v8" else 304               # output code of the non-cane class (281 cassava for v8, 304 "Other Crops" for v9)
 PARAMS = dict(n_estimators=300, num_leaves=15, min_child_samples=40, class_weight="balanced", subsample=0.8, subsample_freq=1, colsample_bytree=0.8, verbose=-1, random_state=0)
@@ -31,16 +31,16 @@ def feats(b2, b3, b5):
 def polygons():
     g = gpd.read_file(P / "sites/user_labels/gcps_country_2026-10-15_analysis.gpkg"); g = g[~g.call2.str.startswith(("rice", "unclear"))].to_crs(32648).assign(y=1)
     parts = [g[["site", "y", "geometry"]],
-             gpd.read_file(P / "sites/user_labels/cassava_noise_site66_2026-10-15.gpkg").to_crs(32648).assign(site="site66", y=1)[["site", "y", "geometry"]],
+             gpd.read_file(P / "sites/user_labels/cassava_noise_site86_2026-10-15.gpkg").to_crs(32648).assign(site="site86", y=1)[["site", "y", "geometry"]],
              gpd.read_file(P / "sites/user_labels/cane_polygons_2026-10-15.gpkg").to_crs(32648).assign(y=0)[["site", "y", "geometry"]],
-             gpd.read_file(P / "sites/user_labels/cane_polygons_site66_2026-10-15.gpkg").to_crs(32648).assign(site="site66", y=0)[["site", "y", "geometry"]]]
+             gpd.read_file(P / "sites/user_labels/cane_polygons_site86_2026-10-15.gpkg").to_crs(32648).assign(site="site86", y=0)[["site", "y", "geometry"]]]
     if TAG != "v8":                                    # v9: non-cane = cassava + rice (+ anything the user marked not-cane)
         rd = lambda f: gpd.read_file(P / "sites/user_labels" / f).to_crs(32648)
         g2 = gpd.read_file(P / "sites/user_labels/gcps_country_2026-10-15_analysis.gpkg"); g2 = g2[g2.call2.str.startswith("rice")].to_crs(32648).assign(y=1)
-        nb = rd("site82_gcps_2026-10-16.gpkg")
-        parts += [g2[["site", "y", "geometry"]]] + ([] if os.environ.get("NO_SITE_RICE") else [rd("site109_rice_gcps_2026-10-16.gpkg").assign(site="site109", y=1)[["site", "y", "geometry"]]])
-        parts += [rd("site109_cane_gcps_2026-10-16.gpkg").assign(site="site109", y=0)[["site", "y", "geometry"]],
-                  nb.assign(site="site82", y=(nb.attribute == "not-cane").astype(int))[["site", "y", "geometry"]]]
+        nb = rd("site102_gcps_2026-10-16.gpkg")
+        parts += [g2[["site", "y", "geometry"]]] + ([] if os.environ.get("NO_SITE_RICE") else [rd("site129_rice_gcps_2026-10-16.gpkg").assign(site="site129", y=1)[["site", "y", "geometry"]]])
+        parts += [rd("site129_cane_gcps_2026-10-16.gpkg").assign(site="site129", y=0)[["site", "y", "geometry"]],
+                  nb.assign(site="site102", y=(nb.attribute == "not-cane").astype(int))[["site", "y", "geometry"]]]
     pl = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=32648); pl["pid"] = range(len(pl)); return pl
 
 
@@ -73,7 +73,7 @@ def train():
         pol = te.assign(p=m.predict_proba(te[COLS])[:, 1]).groupby("pid").agg(y=("y", "first"), p=("p", "mean"))
         print(f"  {sk:11s} {dt}: cane wrong {int(((pol.y == 0) & (pol.p >= 0.5)).sum())}/{int((pol.y == 0).sum())}  non-cane wrong {int(((pol.y == 1) & (pol.p < 0.5)).sum())}/{int(pol.y.sum())}", flush=True)
     cap = int(os.environ.get("GROUP_CAP", "0")); w = None
-    if cap:                                            # v9c: no (site, date, class) group counts more than `cap` px (Site82 rice = 6,800 px per date)
+    if cap:                                            # v9c: no (site, date, class) group counts more than `cap` px (Site102 rice = 6,800 px per date)
         n = df.groupby(["site", "date", "y"]).y.transform("size"); w = np.minimum(1.0, cap / n).values; print("group cap", cap, "effective px:", round(float(w.sum())))
     m = lgb.LGBMClassifier(**PARAMS).fit(df[COLS], df.y, sample_weight=w); joblib.dump({"model": m, "cols": COLS}, P / "sites/layer2" / f"colour_model_{TAG}.joblib"); print("saved", TAG)
 
@@ -122,8 +122,8 @@ def apply(site_dir, tag=TAG):
 
 
 def check(tag=TAG):
-    g = gpd.read_file(P / "sites/user_labels/checkset_v6c_site66_2026.gpkg"); g["user_call"] = g.user_call.fillna("").str.strip().str.lower().replace({"cane but bad health": "cane"})
-    with rasterio.open(SP.site_dir("site66_2026") / "data/model" / f"cassava_colour_{tag}/class_2026.tif") as r: cls = r.read(1)
+    g = gpd.read_file(P / "sites/user_labels/checkset_v6c_site86_2026.gpkg"); g["user_call"] = g.user_call.fillna("").str.strip().str.lower().replace({"cane but bad health": "cane"})
+    with rasterio.open(SP.site_dir("site86_2026") / "data/model" / f"cassava_colour_{tag}/class_2026.tif") as r: cls = r.read(1)
     g["model"] = [{1: "cane", 281: "cassava", 304: "cassava"}.get(int(cls[r.row, r.col]), "unknown") for _, r in g.iterrows()]
     print(pd.crosstab(g.user_call, g.model).to_string()); print(f"agreement {tag}: {(g.user_call == g.model).mean() * 100:.0f} %")
 

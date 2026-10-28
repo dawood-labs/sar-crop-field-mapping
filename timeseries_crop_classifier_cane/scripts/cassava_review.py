@@ -15,7 +15,7 @@ import numpy as np, pandas as pd, rasterio, geopandas as gpd  # noqa: E402
 from rasterio.features import rasterize  # noqa: E402
 import site_paths as SP
 
-SITES = {"site66_2026": "site66", "site111_2026": "Site111", "site93_2026": "Site93"}
+SITES = {"site86_2026": "site86", "site131_2026": "Site131", "site113_2026": "Site113"}
 N = {281: 60, 1: 40}
 RUBRIC = IR.RUBRIC.replace("Answer one row per sheet: sample_id,answer,what,confidence,note",
     "EVERY block here is already known to be a dense upland crop in October (cane-like). Your job is the CROP TYPE.\n"
@@ -29,7 +29,7 @@ def sample():
     rng = np.random.default_rng(IR.SEED); rows = []
     polys = pd.concat([gpd.read_file(IR.PROJ / "sites/user_labels/gcps_country_2026-10-15_analysis.gpkg").to_crs(32648)[["site", "geometry"]],
                        gpd.read_file(IR.PROJ / "sites/user_labels/cane_polygons_2026-10-15.gpkg").to_crs(32648)[["site", "geometry"]],
-                       gpd.read_file(IR.PROJ / "sites/user_labels/cassava_noise_site66_2026-10-15.gpkg").to_crs(32648).assign(site="site66")[["site", "geometry"]]])
+                       gpd.read_file(IR.PROJ / "sites/user_labels/cassava_noise_site86_2026-10-15.gpkg").to_crs(32648).assign(site="site86")[["site", "geometry"]]])
     tot = {}
     for site in SITES:
         with rasterio.open(SP.site_dir(site) / f"data/model/cassava_static_{VTAG}/class_2026.tif") as r: tot[site] = r.read(1)

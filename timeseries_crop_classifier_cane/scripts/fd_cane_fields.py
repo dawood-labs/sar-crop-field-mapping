@@ -138,15 +138,19 @@ def best_cut(poly, x, y, v, depth, top=6):
 def _cut_job(a): return best_cut(a[0], a[1], a[2], a[3], DEPTH)
 
 
-def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("fields"); ap.add_argument("aoi"); ap.add_argument("cls"); ap.add_argument("out")
-    ap.add_argument("--bbox", nargs=4, type=float); a = ap.parse_args(); t0 = time.time(); log = {}
-    aoi = gpd.read_file(a.aoi).to_crs(32648).union_all()
-    bb = a.bbox; area_box = box(*bb) if bb else None; clip = aoi.intersection(area_box) if bb else aoi
-    ck = a.out.replace(".gpkg", "_precleaned.parquet")
-    if os.environ.get("RESUME") == "1" and os.path.exists(ck):                    # restart after the (long) labelling + cut stage
-        c = gpd.read_parquet(ck); log = json.load(open(ck + ".json")); print(f"resumed {len(c)} cane polygons from {ck}", flush=True)
-        return finish(a, c, log, t0)
+def field_stats(a, clip, log, t0):
+    """Per-field pixel counts + the cut result of every field below KEEP: the same for every NONCANE_MAX_AC version, so it
+    is computed once per (fields, AOI, class raster) and cached in <out dir>/_cache_<hash>/ (28 Oct 2026: the 4 versions
+    of a province repeated ~20 min of dedupe + labelling + cutting each)."""
+    import hashlib, pickle
+    key = hashlib.sha1(json.dumps([[os.path.basename(p), os.path.getsize(p)] for p in (a.fields, a.aoi, a.cls)]   # path / pod independent
+                                  + [a.bbox, KEEP, DEPTH, MIN_AC, MIN_W, TILE_M, N_ANG, DROP_PCT, DROP_AC]).encode()).hexdigest()[:12]
+    cdir = os.path.join(os.environ.get("FD_CACHE_DIR") or os.path.join(os.path.dirname(os.path.abspath(a.out)), "_cache"), key)
+    if os.path.exists(os.path.join(cdir, "DONE")):
+        st = gpd.read_parquet(os.path.join(cdir, "fields.parquet")); cuts = pickle.load(open(os.path.join(cdir, "cuts.pkl"), "rb"))
+        log.update(json.load(open(os.path.join(cdir, "log.json"))))
+        print(f"field stats from cache {cdir}: {len(st)} fields with cane, {sum(map(len, cuts.values()))} cut pieces ({time.time() - t0:.0f} s)", flush=True)
+        return st, cuts, log
     g, log["invalid_repaired"] = load_fields(a.fields, clip.bounds); log["fields_read"] = len(g)
     g, log["duplicates_removed"] = dedupe(g); print(f"fields {len(g)} after dedupe ({time.time() - t0:.0f} s)", flush=True)
     # cut at the AOI boundary
@@ -156,7 +160,7 @@ def main():
     #                                                                                     the piece of the boundary inside its own bbox (fast)
     g["geometry"] = geo; g["boundary_cut"] = edge; g = g[inside | edge]
     g = g.explode(index_parts=False); g = g[(g.geom_type == "Polygon") & (g.area >= 1)].reset_index(drop=True)
-    rows = []; n_keep = 0; jobs = []
+    recs = []; jobs = []
     rp = shapely.get_coordinates(par(shapely.point_on_surface, g.geometry.values, chunk=20000))
     x0, y0, x1, y1 = clip.bounds; tx = ((rp[:, 0] - x0) // TILE_M).astype(int); ty = ((rp[:, 1] - y0) // TILE_M).astype(int)
     tid = tx * 10000 + ty; src = rasterio.open(a.cls)
@@ -171,24 +175,51 @@ def main():
             sl = slice(starts[k], starts[k + 1]); vv = v[sl]
             if not (vv == CANE).any(): continue
             n_c, n_v = shares(vv); n_cl = int((vv == ND).sum()); poly = gs.geometry.values[k]
-            base = dict(src_fid=int(gs.fid0[k]), uid=gs.uid[k], cloud_pct=round(100 * n_cl / max(len(vv), 1), 1))
-            share = n_c / max(n_v, 1); cane_ac = n_c * 100 / ACRE
-            non_ac = int(((vv == NONE_) | ((vv == CASSAVA) & (os.environ.get("NONCANE_INCL_CASSAVA") == "1"))).sum()) * 100 / ACRE                              # option B (user 27 Oct): cassava px are cane-like,
-            if share >= KEEP or non_ac <= NONCANE_MAX_AC:                                 # only class-0 px count as non-cane here; >= KEEP cane or
-                if share < KEEP and share < DROP_PCT / 100 and cane_ac < DROP_AC: continue   # is small (<= NONCANE_MAX_AC): never cut
-                rv = "boundary_cut" if gs.boundary_cut[k] else ""                          # (dropped only if < DROP_PCT % AND < DROP_AC)
-                if share < KEEP: rv = (rv + ";" if rv else "") + "kept_mixed"
-                rows.append(dict(base, geometry=poly, cane_pct=round(100 * n_c / max(n_v, 1), 1), review=rv, exact=not gs.boundary_cut[k])); n_keep += 1
-            else: jobs.append((base, poly, x[sl].copy(), y[sl].copy(), vv.copy()))
+            recs.append(dict(src_fid=int(gs.fid0[k]), uid=gs.uid[k], cloud_pct=round(100 * n_cl / max(len(vv), 1), 1), n_c=n_c, n_v=n_v,
+                             n_none=int((vv == NONE_).sum()), n_cassava=int((vv == CASSAVA).sum()), boundary_cut=bool(gs.boundary_cut[k]), geometry=poly))
+            if n_c / max(n_v, 1) < KEEP: jobs.append((len(recs) - 1, poly, x[sl].copy(), y[sl].copy(), vv.copy()))
         del f, x, y, v
-    print(f"labelled {len(rows)} whole + {len(jobs)} mixed fields ({time.time() - t0:.0f} s)", flush=True)
+    print(f"field stats: {len(recs)} fields with cane, {len(jobs)} below KEEP to cut ({time.time() - t0:.0f} s)", flush=True)
     import multiprocessing as mp
     from safe_resources import cpus
-    with mp.get_context("fork").Pool(cpus()) as pool:                              # mixed fields: cut search on all cores
+    with mp.get_context("fork").Pool(cpus()) as pool:                              # cut search on all cores, once for all versions
         res = pool.map(_cut_job, [(p, xx, yy, vv) for _, p, xx, yy, vv in jobs], chunksize=8)
+    cuts = {k: got for (k, *_), got in zip(jobs, res)}
+    st = gpd.GeoDataFrame(recs, crs=32648)
+    os.makedirs(cdir, exist_ok=True)
+    st.to_parquet(os.path.join(cdir, "fields.parquet")); pickle.dump(cuts, open(os.path.join(cdir, "cuts.pkl"), "wb"))
+    json.dump({k: log[k] for k in ("invalid_repaired", "fields_read", "duplicates_removed")}, open(os.path.join(cdir, "log.json"), "w"))
+    open(os.path.join(cdir, "DONE"), "w").write(time.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"field stats + cuts cached in {cdir} ({time.time() - t0:.0f} s)", flush=True)
+    return st, cuts, log
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("fields"); ap.add_argument("aoi"); ap.add_argument("cls"); ap.add_argument("out")
+    ap.add_argument("--bbox", nargs=4, type=float); a = ap.parse_args(); t0 = time.time(); log = {}
+    aoi = gpd.read_file(a.aoi).to_crs(32648).union_all()
+    bb = a.bbox; area_box = box(*bb) if bb else None; clip = aoi.intersection(area_box) if bb else aoi
+    ck = a.out.replace(".gpkg", "_precleaned.parquet")
+    if os.environ.get("RESUME") == "1" and os.path.exists(ck):                    # restart after the (long) labelling + cut stage
+        c = gpd.read_parquet(ck); log = json.load(open(ck + ".json")); print(f"resumed {len(c)} cane polygons from {ck}", flush=True)
+        return finish(a, c, log, t0)
+    st, cuts, log = field_stats(a, clip, log, t0)           # 28 Oct: shared by every version (cached next to the output)
+    rows = []; n_keep = 0; jobs = []
+    incl = os.environ.get("NONCANE_INCL_CASSAVA") == "1"
+    for k, r in enumerate(st.itertuples(index=False)):                          # same order and rules as before the cache
+        base = dict(src_fid=int(r.src_fid), uid=r.uid, cloud_pct=r.cloud_pct)
+        share = r.n_c / max(r.n_v, 1); cane_ac = r.n_c * 100 / ACRE
+        non_ac = (r.n_none + (r.n_cassava if incl else 0)) * 100 / ACRE
+        if share >= KEEP or non_ac <= NONCANE_MAX_AC:
+            if share < KEEP and share < DROP_PCT / 100 and cane_ac < DROP_AC: continue
+            rv = "boundary_cut" if r.boundary_cut else ""
+            if share < KEEP: rv = (rv + ";" if rv else "") + "kept_mixed"
+            rows.append(dict(base, geometry=r.geometry, cane_pct=round(100 * r.n_c / max(r.n_v, 1), 1), review=rv, exact=not r.boundary_cut)); n_keep += 1
+        else: jobs.append((k, base))
+    print(f"labelled {n_keep} whole + {len(jobs)} mixed fields ({time.time() - t0:.0f} s)", flush=True)
     n_cut = 0
-    for (base, *_), got in zip(jobs, res):
-        for piece, a_, b_ in got:
+    for k, base in jobs:
+        for piece, a_, b_ in cuts[k]:
             if a_ / max(b_, 1) < DROP_PCT / 100 and a_ * 100 / ACRE < DROP_AC: continue    # same drop rule for cut pieces
             rows.append(dict(base, geometry=piece, cane_pct=round(100 * a_ / b_, 1), review="cut", exact=False)); n_cut += 1
     c = gpd.GeoDataFrame(rows, crs=32648); log.update(kept_whole=n_keep, cut_pieces=n_cut); print(f"cane polygons {len(c)} ({time.time() - t0:.0f} s)", flush=True)
@@ -250,7 +281,12 @@ def clean(c, log):
             if len(keep) < len(p.interiors): c.at[k, "geometry"] = shapely.Polygon(p.exterior, keep); holes += 1; flag(c, [k], "holes_filled")
     log["holes_filled"] = holes; desp = 0
     geo = c.geometry.values                                                      # tails / spikes, opening on all cores
-    op = par(lambda a: shapely.intersection(shapely.buffer(shapely.buffer(a, -OPEN_M, join_style="mitre"), OPEN_M, join_style="mitre"), a), geo, chunk=500)
+    def opening(a):                                                              # 28 Oct: a GEOS error in one polygon of a
+        o = lambda x: shapely.buffer(shapely.buffer(x, -OPEN_M, join_style="mitre"), OPEN_M, join_style="mitre")   # chunk
+        try: return shapely.intersection(o(a), a)                               # -> that chunk one by one with the safe()
+        except shapely.errors.GEOSException:                                     # retry (unchanged result where it worked)
+            return np.array([safe(shapely.intersection, o(x), x) for x in a], dtype=object)
+    op = par(opening, geo, chunk=500)
     for k, (p, o) in enumerate(zip(geo, op)):
         if o is None or o.is_empty: continue
         if o.geom_type != "Polygon": o = max([q for q in getattr(o, "geoms", [o]) if q.geom_type == "Polygon"] or [p], key=lambda q: q.area)

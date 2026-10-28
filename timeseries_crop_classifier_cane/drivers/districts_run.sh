@@ -1,6 +1,6 @@
 #!/bin/bash
 # End-to-end for analysis districts: GEE -> GCS export, fetch, process (stacks, S1 15d with track alias, S2 dry, pheno),
-# map (r2 + October rule + recall rule v5).  usage: drivers/districts_run.sh "name:DESro:ASCro" ...  e.g. "site119:62:172"
+# map (r2 + October rule + recall rule v5).  usage: drivers/districts_run.sh "name:DESro:ASCro" ...  e.g. "site139:62:172"
 P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P; export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 EE_MAX_ACTIVE=600
 declare -A DES ASC
 for a in "$@"; do IFS=: read n d s <<< "$a"; DES[$n]=$d; ASC[$n]=$s; done

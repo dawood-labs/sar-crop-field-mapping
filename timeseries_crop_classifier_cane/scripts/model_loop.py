@@ -7,8 +7,8 @@ plus the blind-review answers of every reviewed 2026 district as hard examples (
 weight REVIEW_WEIGHT): answer cane (sugarcane or cane-like, e.g. cassava) -> 1, not_cane (medium / high confidence) -> 0,
 unsure -> not used.
 Features: VV + VH 15-day composites Jan - 10 Oct (2026 band names shifted to 2025); LightGBM defaults; threshold 0.5.
-usage: TAG=loop1 SITES_2025=site99,site21,site01 \
-       SITES_2026=site99_2026,site92_2026,site116_2026,site20_2026 python scripts/model_loop.py
+usage: TAG=loop1 SITES_2025=site119,site21,site01 \
+       SITES_2026=site119_2026,site112_2026,site136_2026,site20_2026 python scripts/model_loop.py
 Output: data/model/<TAG>/model.joblib (same format as the other models) + train.json
 """
 from __future__ import annotations
@@ -32,8 +32,8 @@ import site_paths as SP
 PROJ = M.PROJ
 TAG = os.environ.get("TAG", "loop1")
 OUT = PROJ / "data/model" / TAG
-S25 = [s for s in os.environ.get("SITES_2025", "site99,site21,site01").split(",") if s]
-S26 = [s for s in os.environ.get("SITES_2026", "site99_2026").split(",") if s]
+S25 = [s for s in os.environ.get("SITES_2025", "site119,site21,site01").split(",") if s]
+S26 = [s for s in os.environ.get("SITES_2026", "site119_2026").split(",") if s]
 FS = os.environ.get("FS", "VVVH@202501a")                 # Nov start test: VVVH@202411a
 FEAT = os.environ.get("FEAT", "jan")                       # composites s1_15d_<year><FEAT>.tif ("jan" | "nov")
 NEWCANE_EXCLUDE = os.environ.get("NEWCANE_EXCLUDE") == "1"  # 2026: drop non-cane px that look like Oct-Dec plantings
@@ -45,7 +45,7 @@ PHENO = os.environ.get("PHENO") == "1"
 PLANT_EXCLUDE = os.environ.get("PLANT_EXCLUDE") == "1"   # 2026: drop label non-cane px with a plant-cane pattern (bare dry season, green by May-Jun, dense Jul-Sep)                                # + date-free phenology features (pheno_features.py, round 3)
 RATOON_EXCLUDE = os.environ.get("RATOON_EXCLUDE") == "1"      # 2026: also drop non-cane px with dry-season ratoon regrowth
 EXTRA_REVIEW = [Path(x) for x in os.environ.get("EXTRA_REVIEW", "").split(",") if x]  # e.g. indep review results (column site)
-SITE_W = {k: float(v) for k, v in (x.split(":") for x in os.environ.get("SITE_WEIGHTS", "").split(",") if x)}  # e.g. site66_2026:0.3
+SITE_W = {k: float(v) for k, v in (x.split(":") for x in os.environ.get("SITE_WEIGHTS", "").split(",") if x)}  # e.g. site86_2026:0.3
 T0 = time.time()
 
 
@@ -54,9 +54,9 @@ def log(*a):
 
 
 def paths(site, year):
-    root = PROJ if site == "site99" else SP.site_dir(site)
-    feat = root / "data/features" / ("s1_15d_2025.tif" if (site == "site99" and FEAT == "jan") else
-                                     "s1_15d_2025nov.tif" if site == "site99" else f"s1_15d_{year}{FEAT}.tif")
+    root = PROJ if site == "site119" else SP.site_dir(site)
+    feat = root / "data/features" / ("s1_15d_2025.tif" if (site == "site119" and FEAT == "jan") else
+                                     "s1_15d_2025nov.tif" if site == "site119" else f"s1_15d_{year}{FEAT}.tif")
     return root, feat
 
 

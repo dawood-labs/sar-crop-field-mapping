@@ -1,4 +1,4 @@
-"""Was the Sentinel-1 VH dip WATER or BARE SOIL? (user, 20 Oct 2026: a Site109 cane field cut in April showed a 2-month VH/VV
+"""Was the Sentinel-1 VH dip WATER or BARE SOIL? (user, 20 Oct 2026: a Site129 cane field cut in April showed a 2-month VH/VV
 "dip" that was dry bare land, not flooding; the rice model took it as a paddy.)
 For every pixel: dip periods = half-months Apr-Sep where the 15-day VH anomaly (vs the pixel's own median) <= -4 dB on either
 track (s1_15d_2026nov.tif). Over all clear S2 dates inside those half-months (stacks B3 B4 B8 + cs_cdf >= 60):

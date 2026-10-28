@@ -12,8 +12,8 @@ import site_paths as SP
 
 PROJ = Path(__file__).resolve().parents[1]
 TAG = sys.argv[1] if len(sys.argv) > 1 else "loop3"
-SITES = ["site99_2026", "site92_2026", "site116_2026", "site20_2026", "site114_2026",
-         "site64_2026", "site62_2026", "site06_2026", "site102_2026", "site66_2026"]
+SITES = ["site119_2026", "site112_2026", "site136_2026", "site20_2026", "site134_2026",
+         "site84_2026", "site82_2026", "site06_2026", "site122_2026", "site86_2026"]
 
 
 def s2_dates(root):
@@ -66,7 +66,7 @@ def main():
                "change_pct": round(100 * (a26 - a25) / max(a25, 1), 1), "change_reference": ref,
                "map_2026": rel(mdir / "cane_map_2026.tif"), "prob_2026": rel(mdir / "cane_prob_2026.tif"),
                "change": rel(mdir / "change_2025_2026.tif"), "s2_folder": rel(root / "data/raw/s2"),
-               "index_raster": rel(idx), "notebook_SITE": "site99" if s == "site99_2026" else s,
+               "index_raster": rel(idx), "notebook_SITE": "site119" if s == "site119_2026" else s,
                "s2_clearest_per_month": best, "s2_october_all": octo}
         out.append(row)
         md += [f"## {row['district']}  (cane 2025 {a25:,} ac -> 2026 {a26:,} ac, {row['change_pct']:+.1f} %; {ref})",

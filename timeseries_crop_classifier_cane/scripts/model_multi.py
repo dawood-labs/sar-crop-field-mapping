@@ -42,7 +42,7 @@ def log(*a):
 
 
 def site_paths(name):
-    if name == "site99":
+    if name == "site119":
         return PROJ, PROJ / "data/features/s1_15d_2025.tif"
     root = SP.site_dir(name)
     return root, root / "data/features/s1_15d_2025jan.tif"
@@ -73,7 +73,7 @@ def site_samples(name, k):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    sites = ["site99"] + [s for s in TRAIN_SITES if s]
+    sites = ["site119"] + [s for s in TRAIN_SITES if s]
     parts = [site_samples(s, k) for k, s in enumerate(sites)]
     cols = parts[0][3]
     assert all(p[3] == cols for p in parts), "feature columns differ between sites"

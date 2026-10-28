@@ -1,12 +1,12 @@
-"""Where district folders live (user, 22 Oct 2026): sites/<year>/<Province>/<site>/, e.g. sites/2026/province7/site118_2026.
-Folder names keep the year suffix (site118_2026) because every CSV / review file / model json uses them as site keys.
+"""Where district folders live (user, 22 Oct 2026): sites/<year>/<Province>/<site>/, e.g. sites/2026/province7/site138_2026.
+Folder names keep the year suffix (site138_2026) because every CSV / review file / model json uses them as site keys.
 Shared folders (layer2, user_labels, testset_v1, benchmark, reviews, index CSVs) stay directly in sites/.
 
-  site_dir("site118_2026")          -> Path of the district folder (old-style "sites/site118_2026" also works)
+  site_dir("site138_2026")          -> Path of the district folder (old-style "sites/site138_2026" also works)
   all_sites("*_2026")                 -> sorted list of district folders matching the pattern (any province)
   python scripts/site_paths.py place  -> moves any district folder still lying directly in sites/ into sites/<year>/<Province>/
   python scripts/site_paths.py list   -> prints year, province, site
-  python scripts/site_paths.py dir <site>  -> prints the folder (for shell drivers: S=$(python scripts/site_paths.py dir site118_2026))
+  python scripts/site_paths.py dir <site>  -> prints the folder (for shell drivers: S=$(python scripts/site_paths.py dir site138_2026))
 """
 from __future__ import annotations
 

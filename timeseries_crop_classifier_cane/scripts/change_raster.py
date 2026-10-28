@@ -1,6 +1,6 @@
 """change_2025_2026.tif for a 2026 district: 2025 = the 2025 cane map (label), 2026 = the model's 2026 map.
 0 non-cane both, 1 cane both, 2 cane 2025 only (lost), 3 cane 2026 only (new), 255 outside; + .qml and acres.
-(The first AOI also has a model-vs-model change raster in sites/site99_2026/data/model/m2026/.)
+(The first AOI also has a model-vs-model change raster in sites/site119_2026/data/model/m2026/.)
 usage: python scripts/change_raster.py sites/<site> [model tag, default m2026]
 """
 import json, sys

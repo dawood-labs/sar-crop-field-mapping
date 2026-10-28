@@ -4,8 +4,8 @@ mix-up elsewhere is acceptable). Built from scratch on per-pixel RELATIVE, consi
                                       May green-up; see scripts/s1_runs.py)
   * data/features/s1_15d_2026nov.tif (15-day VH / VV-VH per track, Apr-Oct, each minus the pixel's own median = anomaly series)
   * Sep-Oct 5-3-2 colour trajectory  (scripts/rice_stage2.trajectory: yellowness / greenness / hue first, last, slope, drop)
-Labels: rice = user rice polygons (Site109, Site82 not-cane, gcps rice) + reviewer rice blocks (sites/layer2_labels_all.csv);
-cane = user cane polygons (Site109, Site82, site66, Site93, Site111) + reviewer sugarcane blocks. Test-set blocks excluded.
+Labels: rice = user rice polygons (Site129, Site102 not-cane, gcps rice) + reviewer rice blocks (sites/layer2_labels_all.csv);
+cane = user cane polygons (Site129, Site102, site86, Site113, Site131) + reviewer sugarcane blocks. Test-set blocks excluded.
 Train: LightGBM, leave-one-district-out report (rice recall, false rice on cane) -> sites/layer2/rice_cane_model.joblib.
 Apply: p(rice) on every class-1 pixel -> <site>/data/model/rice_cane/: rice_prob_2026.tif, rice_2026.tif (1 rice, 0 cane, 255 out),
 class4_2026.tif (1 sugarcane, 7 rice, 281 cassava, 0 none), rice.json (acres).
@@ -19,16 +19,16 @@ import site_paths as SP
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent)); import qgis_style as Q; from rice_stage2 import trajectory, COLS as CCOLS  # noqa
 P = Path(__file__).resolve().parents[1]; ACRE = 0.0247105; THR = float(os.environ.get("THR", 0.6)); SMOOTH = int(os.environ.get("SMOOTH", 5))
-U = P / "sites/user_labels"; SITE_DIR = {"site66": "site66_2026", "Site111": "site111_2026", "Site93": "site93_2026"}
+U = P / "sites/user_labels"; SITE_DIR = {"site86": "site86_2026", "Site131": "site131_2026", "Site113": "site113_2026"}
 HM = [f"2026{m:02d}{h}" for m in range(4, 11) for h in "ab"][:-1]            # 202604a .. 202610a
 PARAMS = dict(n_estimators=400, num_leaves=15, min_child_samples=50, learning_rate=0.05, class_weight="balanced", subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=0, n_jobs=8)
 
 
 def user_polys():
     rd = lambda f: gpd.read_file(U / f).to_crs(32648)
-    parts = [rd("site109_rice_gcps_2026-10-16.gpkg").assign(site="site109_2026", y=1), rd("site109_cane_gcps_2026-10-16.gpkg").assign(site="site109_2026", y=0),
-             rd("cane_polygons_site66_2026-10-15.gpkg").assign(site="site66_2026", y=0)]
-    nb = rd("site82_gcps_2026-10-16.gpkg"); parts.append(nb.assign(site="bench_site82_2026", y=(nb.attribute == "not-cane").astype(int)))
+    parts = [rd("site129_rice_gcps_2026-10-16.gpkg").assign(site="site129_2026", y=1), rd("site129_cane_gcps_2026-10-16.gpkg").assign(site="site129_2026", y=0),
+             rd("cane_polygons_site86_2026-10-15.gpkg").assign(site="site86_2026", y=0)]
+    nb = rd("site102_gcps_2026-10-16.gpkg"); parts.append(nb.assign(site="bench_site102_2026", y=(nb.attribute == "not-cane").astype(int)))
     c = rd("cane_polygons_2026-10-15.gpkg"); parts.append(c.assign(site=c.site.map(SITE_DIR), y=0))
     g = rd("gcps_country_2026-10-15_analysis.gpkg"); g = g[g.call2.str.startswith("rice")]; parts.append(g.assign(site=g.site.map(SITE_DIR), y=1))
     return pd.concat([p[["site", "y", "geometry"]] for p in parts], ignore_index=True)
@@ -80,7 +80,7 @@ def label_feats(s):
 
 
 def weights(D, cap=1000):
-    """Per-pixel weights so that no (site, class) group counts more than `cap` pixels (Site82's 6,800 user rice px would dominate)."""
+    """Per-pixel weights so that no (site, class) group counts more than `cap` pixels (Site102's 6,800 user rice px would dominate)."""
     n = D.groupby(["site", "y"]).y.transform("size"); return np.minimum(1.0, cap / n).values
 
 

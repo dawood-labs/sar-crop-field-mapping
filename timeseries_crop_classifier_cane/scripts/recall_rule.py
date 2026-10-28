@@ -1,6 +1,6 @@
 """Recall net (round 3): add pixels with a clear S2 plant-cane pattern that the model map missed.
 Rule (pheno_<year>.tif): ndvi_dry_min < 0.30 AND ndvi_mayjun_max >= 0.55 AND ndvi_julsep_med >= 0.60 AND greenup_days <= 250,
-and not removed by the October bare rule (oct_ndvi_min >= 0.30). Test set site66 (14 Oct): R 0.47 -> 0.71, P 0.94 -> 0.96.
+and not removed by the October bare rule (oct_ndvi_min >= 0.30). Test set site86 (14 Oct): R 0.47 -> 0.71, P 0.94 -> 0.96.
 usage: python scripts/recall_rule.py <src tag (with oct rule)> <out tag> sites/<site> [...]
 Output <site>/data/model/<out tag>/: cane_map_2026.tif (1 = cane), cane_source_2026.tif (1 model, 2 rule) + .qml, cane_prob_2026.tif copy, rule.json
 """

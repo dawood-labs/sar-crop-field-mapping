@@ -55,10 +55,12 @@ def available_bytes() -> int:
             avail = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
         except (ValueError, OSError):
             avail = 8 * 2**30
-    try:
-        lim = open("/sys/fs/cgroup/memory.max").read().strip()
+    try:                                              # cgroup headroom WITHOUT the page cache (28 Oct: counting the cache of
+        lim = open("/sys/fs/cgroup/memory.max").read().strip()   # a busy pod left ~2 GB -> every step ran with 1 worker)
         if lim != "max":
-            avail = min(avail, int(lim) - int(open("/sys/fs/cgroup/memory.current").read()))
+            used = int(open("/sys/fs/cgroup/memory.current").read())
+            st = dict(l.split() for l in open("/sys/fs/cgroup/memory.stat") if l.startswith(("file ", "anon ")))
+            avail = min(avail, int(lim) - (used - int(st.get("file", 0))))
     except (OSError, ValueError):
         pass
     return max(avail, 256 * 2**20)

@@ -1,4 +1,4 @@
-"""Global colour model (layer 2 cassava): trained on the user's cane / cassava polygons (site66 26+34, Site93 6+8, Site111
+"""Global colour model (layer 2 cassava): trained on the user's cane / cassava polygons (site86 26+34, Site113 6+8, Site131
 2+9) in the 5-3-2 bands of each district's late-season image; applied inside the cane-like mask of every district on the
 district's clearest late-season image(s) (per pixel the latest clear date among the two best).
 Output <site>/data/model/cassava_colour_v7/: cassava_prob_2026.tif, class_2026.tif (1 sugarcane, 281 cassava, 255 unknown/cloud),
@@ -14,12 +14,12 @@ import site_paths as SP
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent)); import qgis_style as Q  # noqa: E402
 P = Path(__file__).resolve().parents[1]; COLS = ["B5", "B3", "B2", "B5/B3", "B3/B2", "hue", "sat", "val"]; ACRE = 0.0247105
-BEST = {"site116": ["20261012", "20261002"], "site62": ["20261012", "20261002"], "site06": ["20261007", "20261012"], "site64": ["20261007", "20261012"],
-        "bench_site82": ["20261012", "20261007"], "site20": ["20261012", "20261007"], "site99": ["20261002", "20261012"], "site114": ["20261002", "20261012"],
-        "bench_site26": ["20261004", "20260929"], "site92": ["20261002", "20261012"], "site102": ["20261002", "20261012"], "site66": ["20261012", "20261007"],
-        "site109": ["20261007", "20261002"], "site119": ["20260930", "20261002"], "site12": ["20261002"], "site05": ["20261009", "20261004"], "site111": ["20261004", "20260919"],
-        "site93": ["20261009", "20261006"], "site122": ["20260930", "20260920"]}
-LABEL_IMG = {"site66": "20261012", "Site111": "20261004", "Site93": "20261009"}; SITE_DIR = {"site66": "site66_2026", "Site111": "site111_2026", "Site93": "site93_2026"}
+BEST = {"site136": ["20261012", "20261002"], "site82": ["20261012", "20261002"], "site06": ["20261007", "20261012"], "site84": ["20261007", "20261012"],
+        "bench_site102": ["20261012", "20261007"], "site20": ["20261012", "20261007"], "site119": ["20261002", "20261012"], "site134": ["20261002", "20261012"],
+        "bench_site26": ["20261004", "20260929"], "site112": ["20261002", "20261012"], "site122": ["20261002", "20261012"], "site86": ["20261012", "20261007"],
+        "site129": ["20261007", "20261002"], "site139": ["20260930", "20261002"], "site12": ["20261002"], "site05": ["20261009", "20261004"], "site131": ["20261004", "20260919"],
+        "site113": ["20261009", "20261006"], "site142": ["20260930", "20260920"]}
+LABEL_IMG = {"site86": "20261012", "Site131": "20261004", "Site113": "20261009"}; SITE_DIR = {"site86": "site86_2026", "Site131": "site131_2026", "Site113": "site113_2026"}
 
 
 def feats(b2, b3, b5):
@@ -43,7 +43,7 @@ def read_date(site_dir, dt):
 
 def train():
     rows = []
-    files = [("site66", P / "sites/user_labels/cane_polygons_site66_2026-10-15.gpkg", 0), ("site66", P / "sites/user_labels/cassava_noise_site66_2026-10-15.gpkg", 1)]
+    files = [("site86", P / "sites/user_labels/cane_polygons_site86_2026-10-15.gpkg", 0), ("site86", P / "sites/user_labels/cassava_noise_site86_2026-10-15.gpkg", 1)]
     g = gpd.read_file(P / "sites/user_labels/gcps_country_2026-10-15_analysis.gpkg"); g = g[~g.call2.str.startswith(("rice", "unclear"))]
     c = gpd.read_file(P / "sites/user_labels/cane_polygons_2026-10-15.gpkg")
     parts = [gpd.read_file(f).to_crs(32648).assign(site=s, y=y)[["site", "y", "geometry"]] for s, f, y in files] + [g.to_crs(32648).assign(y=1)[["site", "y", "geometry"]], c.to_crs(32648).assign(y=0)[["site", "y", "geometry"]]]

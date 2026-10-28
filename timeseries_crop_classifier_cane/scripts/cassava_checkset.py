@@ -11,12 +11,12 @@ from scipy import ndimage
 from shapely.geometry import box
 import site_paths as SP
 P = Path(__file__).resolve().parents[1]; vtag, site = sys.argv[1], sys.argv[2]; n = int(sys.argv[3]) if len(sys.argv) > 3 else 20
-S = SP.site_dir(site) / "data"; key = {"site66_2026": "site66", "site111_2026": "Site111", "site93_2026": "Site93"}.get(site, site)
+S = SP.site_dir(site) / "data"; key = {"site86_2026": "site86", "site131_2026": "Site131", "site113_2026": "Site113"}.get(site, site)
 with rasterio.open((S / f"model/cassava_colour_{vtag}" if (S / f"model/cassava_colour_{vtag}").exists() else S / f"model/cassava_static_{vtag}") / "class_2026.tif") as r: cls, tr = r.read(1), r.transform
 with rasterio.open((S / f"model/cassava_colour_{vtag}" if (S / f"model/cassava_colour_{vtag}").exists() else S / f"model/cassava_static_{vtag}") / "cassava_prob_2026.tif") as r: prob = r.read(1)
 polys = pd.concat([gpd.read_file(P / "sites/user_labels/gcps_country_2026-10-15_analysis.gpkg").to_crs(32648)[["site", "geometry"]],
                    gpd.read_file(P / "sites/user_labels/cane_polygons_2026-10-15.gpkg").to_crs(32648)[["site", "geometry"]],
-                   gpd.read_file(P / "sites/user_labels/cassava_noise_site66_2026-10-15.gpkg").to_crs(32648).assign(site="site66")[["site", "geometry"]]])
+                   gpd.read_file(P / "sites/user_labels/cassava_noise_site86_2026-10-15.gpkg").to_crs(32648).assign(site="site86")[["site", "geometry"]]])
 far = np.ones(cls.shape, bool); pp = polys[polys.site == key]
 if len(pp): far &= ~rasterize([(g.buffer(300), 1) for g in pp.geometry], out_shape=cls.shape, transform=tr, dtype="uint8").astype(bool)
 k5 = np.ones((5, 5), bool); cv = cls.astype("int32"); uni = ndimage.minimum_filter(cv, footprint=k5) == ndimage.maximum_filter(cv, footprint=k5)

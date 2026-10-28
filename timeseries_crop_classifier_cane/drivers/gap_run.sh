@@ -3,7 +3,7 @@
 # recipe as the districts (route B download -> stacks -> features -> layer 1 -> layer 2 -> S3 upload of raw + stacks + outputs).
 # Gap AOIs are thin / scattered, so download.py uses 256 px blocks and skips blocks without AOI pixels.
 # usage: AWS_ENV=<creds file> setsid nohup bash drivers/gap_run.sh "site:DES:ASC[:alias]" ... > logs/gap_run.log 2>&1 &
-#   e.g. "site134_2026:164:99" "site124_2026:164:26:a" "site35_2026:62:172:a"   (a = alias tracks to the model's)
+#   e.g. "site154_2026:164:99" "site144_2026:164:26:a" "site55_2026:62:172:a"   (a = alias tracks to the model's)
 P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P
 export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=standing-cane-gaps DL_BLOCK=256 DL_S2_QA="" DL_CS_BANDS=cs_cdf   # only what the model + review images need
 for spec in "$@"; do IFS=: read n des asc al <<< "$spec"

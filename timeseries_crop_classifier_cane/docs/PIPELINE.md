@@ -24,6 +24,12 @@ Inside `site`: download (Sentinel-1 VV/VH on 2 tracks, Sentinel-2 B2 B3 B4 B5 B8
 -> stacks -> 15-day S1 composites -> S2 dry-season features -> phenology -> layer 1 (LightGBM `s2on_r2` + October bare rule +
 recall rule v5) -> layer 2 (colour model v8) -> upload. The science code is unchanged from the locked production runs.
 
+## 1b. Storage
+
+S3 is the only storage. The pod disk is scratch: a unit's raw data and stacks exist on the pod only while that unit runs,
+and after the size-verified upload the unit folder keeps just its logs (copied to S3 too). The province and FD steps fetch
+their inputs from S3 into `_work/` and delete it at the end (`--keep-local true` keeps everything, for debugging only).
+
 ## 2. Parameters
 
 Priority: CLI flag > env `PIPELINE_<NAME>` > `config/standing_cane_2026.json`.

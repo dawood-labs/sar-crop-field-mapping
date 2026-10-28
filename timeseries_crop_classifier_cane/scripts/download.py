@@ -70,7 +70,7 @@ S2_DIR = os.environ.get("DL_S2_DIR", "s2")   # e.g. s2_b2 to fetch one missing b
 CRS, RES = "EPSG:32648", 10
 BLOCK = int(os.environ.get("DL_BLOCK", "1024"))   # smaller blocks (e.g. 256) for thin / scattered AOIs
 INSIDE = None                                     # AOI mask of the grid (set in main): blocks without AOI pixels are skipped
-AOI_SHP = Path(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site99.shp")
+AOI_SHP = Path(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site119.shp")
 
 log = logging.getLogger("download")
 
@@ -293,7 +293,12 @@ def main():
     # (a 14k x 16k gap grid = ~2.2 GB per S2 file; 8 workers took down a 15 GB pod)
     from safe_resources import safe_memory_bytes
     per_job = 3 * 6 * 2 * grid["height"] * grid["width"]                # ~6 uint16 bands, x3 for write copies / cloud layers
+    req = workers
     workers = max(1, min(workers, int(safe_memory_bytes() // per_job)))
+    if workers < req:                                 # fewer files at once -> more parallel blocks per file (same network load)
+        bt = int(os.environ.get("DL_BLOCK_THREADS", "1"))
+        os.environ["DL_BLOCK_THREADS"] = str(min(32, bt * req // workers))
+        log.info("memory allows %d files at once (of %d): %s block threads per file", workers, req, os.environ["DL_BLOCK_THREADS"])
     log.info("%d files to download, %d parallel workers", len(pending), workers)
     rows, failed = [], []
     with ThreadPoolExecutor(workers) as pool:

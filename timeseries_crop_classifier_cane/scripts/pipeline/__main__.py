@@ -70,8 +70,8 @@ def run_all(p: Params):
         sys.exit(f"{p.province}: {len(failed)} sites failed ({', '.join(failed)}); run again to retry only those")
     outputs(p, prov)
     if p.fd:
-        for v in p.fd_list:
-            fd(p, v)
+        for i, v in enumerate(p.fd_list):
+            fd(p, v, cleanup=i == len(p.fd_list) - 1)
     log(f"{p.province}: ALL DONE")
 
 

@@ -57,12 +57,12 @@ def labels(site):
     S = SP.site_dir(site) / "data"
     with rasterio.open(S / "model/rice_stage1/rice_sar_2026.tif") as r: dip = r.read(1); tr = r.transform; H, W = r.height, r.width
     pos = dip == 1; neg = np.zeros((H, W), bool)
-    key = {"site66_2026": "site66", "site111_2026": "Site111", "site93_2026": "Site93"}.get(site)
+    key = {"site86_2026": "site86", "site131_2026": "Site131", "site113_2026": "Site113"}.get(site)
     polys = []
-    for f, col, val in (("cane_polygons_2026-10-15.gpkg", "site", key), ("cane_polygons_site66_2026-10-15.gpkg", None, "site66_2026"), ("site82_gcps_2026-10-16.gpkg", "attribute", "cane")):
+    for f, col, val in (("cane_polygons_2026-10-15.gpkg", "site", key), ("cane_polygons_site86_2026-10-15.gpkg", None, "site86_2026"), ("site102_gcps_2026-10-16.gpkg", "attribute", "cane")):
         g = gpd.read_file(P / "sites/user_labels" / f).to_crs(32648)
         if col is None: g = g if site == val else g.iloc[0:0]
-        elif col == "attribute": g = g[g.attribute == "cane"] if site == "bench_site82_2026" else g.iloc[0:0]
+        elif col == "attribute": g = g[g.attribute == "cane"] if site == "bench_site102_2026" else g.iloc[0:0]
         else: g = g[g.site == val]
         polys += list(g.geometry)
     if polys: neg |= rasterize([(p, 1) for p in polys], out_shape=(H, W), transform=tr, dtype="uint8").astype(bool)

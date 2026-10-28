@@ -2,11 +2,11 @@
 
 Why: the 2025-only model called much 2026 cane non-cane (2026 drought: shallower harvest dip, weaker regrowth); a
 blind review of its "lost" fields found ~73 % still cane. 2026 has no labels, so the 2025 cane map is used on the
-2026 data AFTER label QC on the 2026 data (label_qc.py with SC_ROOT=sites/site99_2026, QC_FEATURES=
+2026 data AFTER label QC on the 2026 data (label_qc.py with SC_ROOT=sites/site119_2026, QC_FEATURES=
 s1_15d_2026jan.tif, QC_S2_YEAR=2026): pixels whose 2026 signal disagrees with the 2025 label are excluded.
 Honest check: the 2 km blocks holding the 80 blind-reviewed 2026 pixels are left out of the 2026 training data
 (and of the 2025 data of the same AOI), so those pixels are a held-out test.
-Train: site99 (2025), site21 (2025), site01 (2025), site99_2026 (2026, band names shifted
+Train: site119 (2025), site21 (2025), site01 (2025), site119_2026 (2026, band names shifted
 2026 -> 2025); 100k cane + 100k non-cane per site (clean, edge >= 2); LightGBM defaults; VVVH Jan - 10 Oct.
 Output: data/model/m2026/model.joblib (+ cv.json: leave-one-site-out and held-out review pixels)
 usage: python scripts/model_2026.py
@@ -33,12 +33,12 @@ PROJ = M.PROJ
 OUT = PROJ / "data/model/m2026"
 FS, N_PER_CLASS, SEED = "VVVH@202501a", 100_000, 0
 SITES = {  # name: (root, features file, shift 2026 -> 2025)
-    "site99": (PROJ, PROJ / "data/features/s1_15d_2025.tif", False),
+    "site119": (PROJ, PROJ / "data/features/s1_15d_2025.tif", False),
     "site21": (PROJ / "sites/site21", PROJ / "sites/site21/data/features/s1_15d_2025jan.tif", False),
     "site01": (PROJ / "sites/site01", PROJ / "sites/site01/data/features/s1_15d_2025jan.tif", False),
-    "site99_2026": (SP.site_dir("site99_2026"), SP.site_dir("site99_2026") / "data/features/s1_15d_2026jan.tif", True),
+    "site119_2026": (SP.site_dir("site119_2026"), SP.site_dir("site119_2026") / "data/features/s1_15d_2026jan.tif", True),
 }
-REVIEW = SP.site_dir("site99_2026") / "review_review2026/review_results.csv"
+REVIEW = SP.site_dir("site119_2026") / "review_review2026/review_results.csv"
 T0 = time.time()
 
 
@@ -66,7 +66,7 @@ def load(name, k, held_blocks):
     rr, cc = np.divmod(np.arange(H * W), W)
     blk = blocks(rr, cc, W)
     ok = (Xf > -32000).all(0)
-    if name.startswith("site99"):
+    if name.startswith("site119"):
         ok &= ~np.isin(blk, list(held_blocks))
     rng = np.random.default_rng(SEED + k)
     idx = []
@@ -81,7 +81,7 @@ def load(name, k, held_blocks):
 
 def review_features(W=4019):
     d = pd.read_csv(REVIEW)
-    root, feat, _ = SITES["site99_2026"]
+    root, feat, _ = SITES["site119_2026"]
     with rasterio.open(feat) as r:
         names = shift(list(r.descriptions))
         X = np.stack([r.read(i + 1)[d.row.values, d.col.values] for i in range(r.count)], 1)
@@ -96,7 +96,7 @@ def main():
     held = set(blocks(d_rev.row.values, d_rev.col.values, 4019).tolist())
     log(f"held-out 2 km blocks (review px): {len(held)}")
     parts = {s: load(s, k, held) for k, s in enumerate(SITES)}
-    cols = parts["site99"][2]
+    cols = parts["site119"][2]
     assert all(p[2] == cols for p in parts.values())
     res = {"feature_set": FS, "sites": list(SITES), "held_blocks": len(held), "loso": {}}
     for s in SITES:

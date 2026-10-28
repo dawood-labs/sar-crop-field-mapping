@@ -3,9 +3,9 @@
 # Safety: takes district k only if lane D has not started k-2 yet (no download_s1.log), so the two lanes never meet in one folder.
 P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P
 export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=crop-province
-declare -A ASC=([site96]=26 [site121]=26 [site110]=26 [site14]=26 [site67]=99 [site30]=99 [site60]=99 [site115]=26
-  [site89]=99 [site149]=26 [site29]=99 [site83]=26 [site95]=99 [site02]=26 [site55]=99 [site10]=99)
-ORDER=(site96 site121 site110 site14 site67 site30 site60 site115 site89 site149 site29 site83 site95 site02 site55 site10)
+declare -A ASC=([site116]=26 [site141]=26 [site130]=26 [site14]=26 [site87]=99 [site30]=99 [site80]=99 [site135]=26
+  [site109]=99 [site169]=26 [site29]=99 [site103]=26 [site115]=99 [site02]=26 [site75]=99 [site10]=99)
+ORDER=(site116 site141 site130 site14 site87 site30 site80 site135 site109 site169 site29 site103 site115 site02 site75 site10)
 for ((k=${#ORDER[@]}-1; k>=2; k--)); do n=${ORDER[$k]}; S=$(python scripts/site_paths.py dir ${n}_2026)
   [ -f $S/DOWNLOADED ] && continue
   [ -f $S/logs/download_s1.log ] && [ ! -f $S/DL2_OWNER ] && { echo "D2: $n already started by lane D -> stop"; break; }

@@ -2,7 +2,7 @@
 
 Labels: cassava = user polygons (sites/user_labels/gcps_country_2026-10-15_analysis.gpkg, call2 cassava-like / "tall dense",
 not cane per the user); cane = reviewed sugarcane 3x3 blocks (sites/layer2_labels_all.csv, confidence medium/high) + user
-cane pixels (sites/user_labels.csv). Sites: site66, Site111, Site93 (Site111 / Site93 have no cane labels yet).
+cane pixels (sites/user_labels.csv). Sites: site86, Site131, Site113 (Site131 / Site113 have no cane labels yet).
 Features per pixel (full rasters, 5 x 5 texture):
   img_*   static S2 image (per site date, 5-3-2 image the user looked at): B2 B3 B4 B5 B8, NDVI, NDRE, GNDVI, 3x3 / 5x5 std
   opx_*   red-edge / SWIR latest clear from 15 Sep (data/raw/s2_extra): B6 B7 B8A B11 B12 + NDRE2, NDMI, NBR, SWIR ratio, 5x5 std
@@ -24,7 +24,7 @@ from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
 import site_paths as SP
 sys.path.insert(0, str(Path(__file__).resolve().parent)); import qgis_style as Q  # noqa: E402
 P = Path(__file__).resolve().parents[1]; OUT = P / "sites/layer2"
-SITES = {"site66": ("site66_2026", "20261012"), "Site111": ("site111_2026", "20261004"), "Site93": ("site93_2026", "20261009")}
+SITES = {"site86": ("site86_2026", "20261012"), "Site131": ("site131_2026", "20261004"), "Site113": ("site113_2026", "20261009")}
 PARAMS = dict(n_estimators=300, learning_rate=0.05, num_leaves=15, min_child_samples=20, subsample=0.8, subsample_freq=1, colsample_bytree=0.7, class_weight="balanced", verbose=-1, random_state=0)
 
 
@@ -84,12 +84,12 @@ def label_pixels(site_key, site_dir, H, W, TR):
         if q.call2.startswith("unclear") or q.call2.startswith("rice") or q.call2.startswith("bare"): continue
         mk = rasterize([(q.geometry, 1)], out_shape=(H, W), transform=TR, dtype="uint8").astype(bool); rr, cc = np.nonzero(mk)
         pix += [(r, c, 1, f"poly{q.id}") for r, c in zip(rr, cc)]
-    extra = P / "sites/user_labels/cassava_noise_site66_2026-10-15.gpkg"          # 14 more cassava fields (user, 15 Oct 07:54)
-    if site_key == "site66" and extra.exists():
+    extra = P / "sites/user_labels/cassava_noise_site86_2026-10-15.gpkg"          # 14 more cassava fields (user, 15 Oct 07:54)
+    if site_key == "site86" and extra.exists():
         for j, q in gpd.read_file(extra).to_crs(32648).iterrows():
             mk = rasterize([(q.geometry, 1)], out_shape=(H, W), transform=TR, dtype="uint8").astype(bool); rr, cc = np.nonzero(mk)
             pix += [(r, c, 1, f"cas2_{j}") for r, c in zip(rr, cc)]
-    canef = P / "sites/user_labels/cane_polygons_2026-10-15.gpkg"                      # user cane polygons (Site93 6, Site111 2)
+    canef = P / "sites/user_labels/cane_polygons_2026-10-15.gpkg"                      # user cane polygons (Site113 6, Site131 2)
     if canef.exists():
         gc = gpd.read_file(canef).to_crs(32648)
         if os.environ.get("CANE_SURE") == "1": gc = gc[gc.confidence != "uncertain"]

@@ -29,7 +29,7 @@ def train():
     if extra:
         import geopandas as gpd
         from rasterio.features import rasterize
-        g = gpd.read_file(extra).to_crs(32648); SITE = {"site66": "site66_2026", "Site111": "site111_2026", "Site93": "site93_2026"}
+        g = gpd.read_file(extra).to_crs(32648); SITE = {"site86": "site86_2026", "Site131": "site131_2026", "Site113": "site113_2026"}
         ex = []
         for sk, site in SITE.items():
             with rasterio.open(SP.site_dir(site) / "data/features/pheno_2026.tif") as r:
