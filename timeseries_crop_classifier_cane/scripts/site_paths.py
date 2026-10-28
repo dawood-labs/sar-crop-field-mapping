@@ -1,20 +1,20 @@
-"""Where district folders live (user, 22 Oct 2026): sites/<year>/<Province>/<site>/, e.g. sites/2026/province7/site45_2026.
-Folder names keep the year suffix (site45_2026) because every CSV / review file / model json uses them as site keys.
+"""Where district folders live (user, 22 Oct 2026): sites/<year>/<Province>/<site>/, e.g. sites/2026/province7/site118_2026.
+Folder names keep the year suffix (site118_2026) because every CSV / review file / model json uses them as site keys.
 Shared folders (layer2, user_labels, testset_v1, benchmark, reviews, index CSVs) stay directly in sites/.
 
-  site_dir("site45_2026")          -> Path of the district folder (old-style "sites/site45_2026" also works)
+  site_dir("site118_2026")          -> Path of the district folder (old-style "sites/site118_2026" also works)
   all_sites("*_2026")                 -> sorted list of district folders matching the pattern (any province)
   python scripts/site_paths.py place  -> moves any district folder still lying directly in sites/ into sites/<year>/<Province>/
   python scripts/site_paths.py list   -> prints year, province, site
-  python scripts/site_paths.py dir <site>  -> prints the folder (for shell drivers: S=$(python scripts/site_paths.py dir site45_2026))
+  python scripts/site_paths.py dir <site>  -> prints the folder (for shell drivers: S=$(python scripts/site_paths.py dir site118_2026))
 """
 from __future__ import annotations
 
-import re, sys
+import os, re, sys
 from pathlib import Path
 
 PROJ = Path(__file__).resolve().parents[1]
-SITES = PROJ / "sites"
+SITES = Path(os.environ.get("SC_SITES_ROOT") or PROJ / "sites")   # SC_SITES_ROOT: an isolated folder (pipeline tests)
 
 
 def all_sites(pattern: str = "*_20??") -> list[Path]:

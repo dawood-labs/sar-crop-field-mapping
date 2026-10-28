@@ -11,7 +11,7 @@ from rasterio.windows import Window
 import site_paths as SP
 warnings.filterwarnings("ignore")
 P = Path(__file__).resolve().parents[1]; F = P / "sites/user_labels/gcps_country_2026-10-15.gpkg"
-SITE = {"site25": "site25_2026", "Site41": "site41_2026", "Site33": "site33_2026"}
+SITE = {"site66": "site66_2026", "Site111": "site111_2026", "Site93": "site93_2026"}
 g = gpd.read_file(F); g["id"] = range(len(g)); g = g.to_crs(32648)
 rows = []
 for site_key, site in SITE.items():

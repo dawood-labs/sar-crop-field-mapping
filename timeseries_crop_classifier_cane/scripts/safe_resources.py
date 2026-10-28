@@ -37,11 +37,31 @@ def cpus() -> int:
 
 def safe_memory_bytes(fraction: float = 0.6) -> int:
     guarantee = int(os.environ.get("MEM_GUARANTEE", 0)) or None
+    return int(fraction * min(x for x in (guarantee, available_bytes()) if x))
+
+
+def available_bytes() -> int:
+    """RAM this process can still use: MemAvailable (free + reclaimable page cache; 28 Oct: SC_AVPHYS_PAGES counted only
+    free pages, so a pod with 10 GB of cache looked like 1 GB) capped by the cgroup headroom (memory.max - memory.current)."""
+    avail = None
     try:
-        avail = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-    except (ValueError, OSError):
-        avail = guarantee or 8 * 2**30
-    return int(fraction * min(x for x in (guarantee, avail) if x))
+        for line in open("/proc/meminfo"):
+            if line.startswith("MemAvailable:"):
+                avail = int(line.split()[1]) * 1024; break
+    except OSError:
+        pass
+    if avail is None:
+        try:
+            avail = os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+        except (ValueError, OSError):
+            avail = 8 * 2**30
+    try:
+        lim = open("/sys/fs/cgroup/memory.max").read().strip()
+        if lim != "max":
+            avail = min(avail, int(lim) - int(open("/sys/fs/cgroup/memory.current").read()))
+    except (OSError, ValueError):
+        pass
+    return max(avail, 256 * 2**20)
 
 
 def workers(per_worker_bytes: float, cap: int | None = None) -> int:

@@ -46,7 +46,12 @@ def mosaic(sites):
 
 def main(prov):
     t0 = time.time(); folder = SP.SITES / "2026" / prov; stem = prov.lower()
-    sites = [p for p in SP.all_sites("*_2026") if p.parent == folder and (p / "data/model/layer2_final/class_2026.tif").exists()]
+    if os.environ.get("SC_SITES_PROVINCE_DIR"):       # pipeline runner: a work folder holding exactly the province's units
+        from pathlib import Path
+        folder = Path(os.environ["SC_SITES_PROVINCE_DIR"]); cand = sorted(d for d in folder.iterdir() if d.is_dir())
+    else:
+        cand = [p for p in SP.all_sites("*_2026") if p.parent == folder]
+    sites = [p for p in cand if (p / "data/model/layer2_final/class_2026.tif").exists()]
     a, prof, conflict = mosaic(sites); print(f"mosaic {a.shape} from {len(sites)} districts, overlap conflicts {conflict} px ({time.time() - t0:.0f} s)")
     inside = SP.province_mask(prov, a.shape, prof["transform"], prof["crs"])       # clip to the official province polygon
     clipped = int(((a != ND) & ~inside).sum()); a[~inside] = ND

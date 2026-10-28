@@ -3,7 +3,8 @@ all districts share the 10 m EPSG:32648 grid). Overlap: a valid value beats noda
 usage: python scripts/province_mosaic.py <Province> <rel path in the district folder> <out name>
   e.g. python scripts/province_mosaic.py province7 data/model/s2on_r2_oct_rn5/cane_map_2026.tif province7_cane_map_2026.tif
 """
-import shutil, sys
+import os, shutil, sys
+from pathlib import Path
 
 import numpy as np
 import rasterio
@@ -13,7 +14,11 @@ import site_paths as SP
 
 prov, rel, name = sys.argv[1:4]
 folder = SP.SITES / "2026" / prov
-files = [p / rel for p in SP.all_sites("*_2026") if p.parent == folder and (p / rel).exists()]
+if os.environ.get("SC_SITES_PROVINCE_DIR"):           # pipeline runner: a work folder holding exactly the province's units
+    folder = Path(os.environ["SC_SITES_PROVINCE_DIR"]); sites = sorted(d for d in folder.iterdir() if d.is_dir())
+else:
+    sites = [p for p in SP.all_sites("*_2026") if p.parent == folder]
+files = [p / rel for p in sites if (p / rel).exists()]
 srcs = [rasterio.open(f) for f in files]
 assert len({s.crs for s in srcs}) == 1 and len({s.res for s in srcs}) == 1
 nd = srcs[0].nodata

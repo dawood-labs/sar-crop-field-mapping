@@ -1,0 +1,20 @@
+# Standing-cane pipeline (python 3.11; versions = the JupyterHub pod that produced the locked outputs, 28 Oct 2026)
+# System: GDAL >= 3.8 (pod: 3.13.2) - rasterio / fiona / pyogrio wheels bundle their own GDAL.
+numpy==2.4.6
+pandas==2.2.3
+geopandas==1.0.1
+shapely==2.1.2
+rasterio==1.4.3
+pyproj==3.7.0
+pyogrio==0.10.0
+fiona==1.10.1
+pyarrow==16.1.0
+scipy==1.17.1
+scikit-image==0.26.0
+scikit-learn==1.6.1
+lightgbm==4.7.0          # the layer-1 / colour models were saved with this version: keep it
+joblib==1.5.3
+boto3==1.39.8
+earthengine-api==1.4.4
+google-auth==2.37.0
+requests==2.34.2

@@ -7,14 +7,14 @@ import geopandas as gpd
 import pandas as pd
 
 PROJ = Path(__file__).resolve().parents[1]
-D26 = ["site32", "site44", "site11", "site42", "site24", "site23", "site05",
-       "site38", "site25"]
-ROWS = [("site37", "data/aoi/aoi_site37.shp", "train", "2025 + 2026", "first AOI; final 2026 map")] + \
-       [(s, f"sites/{s}/data/aoi/aoi.shp", "train", "2025", "2025 training site") for s in ("site12", "site01")] + \
+D26 = ["site92", "site116", "site20", "site114", "site64", "site62", "site06",
+       "site102", "site66"]
+ROWS = [("site99", "data/aoi/aoi_site99.shp", "train", "2025 + 2026", "first AOI; final 2026 map")] + \
+       [(s, f"sites/{s}/data/aoi/aoi.shp", "train", "2025", "2025 training site") for s in ("site21", "site01")] + \
        [(s, f"sites/{s}_2026/data/aoi/aoi.shp", "train", "2026", "2026 district loop (label QC + blind reviews)") for s in D26] + \
-       [(s, f"sites/bench_{s}_2026/data/aoi/aoi.shp", "test_only", "2026", "fixed benchmark, never trained on") for s in ("site27", "site15")] + \
-       [("site29", "sites/site29/data/aoi/aoi.shp", "not_used", "2025", "old external test"),
-        ("site03", "sites/site03/data/aoi/aoi.shp", "not_used", "2025", "rice site, not used")]
+       [(s, f"sites/bench_{s}_2026/data/aoi/aoi.shp", "test_only", "2026", "fixed benchmark, never trained on") for s in ("site82", "site26")] + \
+       [("site84", "sites/site84/data/aoi/aoi.shp", "not_used", "2025", "old external test"),
+        ("site04", "sites/site04/data/aoi/aoi.shp", "not_used", "2025", "rice site, not used")]
 COLORS = {"train": "#33ef2a", "test_only": "#F44336", "not_used": "#A0A0A0"}
 
 parts = []

@@ -14,7 +14,7 @@ import pandas as pd, rasterio, numpy as np, warnings; warnings.filterwarnings("i
 from rasterio.windows import Window
 TS="sites/testset_v1"; ROOT="sites"
 k=pd.read_csv(f"{TS}/score_s2on_r2_oct_rows.csv").set_index("sample_id"); k=k[k.label>=0]
-with rasterio.open(f"{ROOT}/site25_2026/data/features/s1_15d_2026nov.tif") as s: names=np.array(s.descriptions)
+with rasterio.open(f"{ROOT}/site66_2026/data/features/s1_15d_2026nov.tif") as s: names=np.array(s.descriptions)
 def metrics(vh, slopes=None):
     vh=np.asarray(vh, float); n=len(vh); ok=~np.isnan(vh)
     if ok.sum()<10: return dict(last_cut=np.nan,grow_len=np.nan,grow_total=np.nan,peak_vh=np.nan,end_vh=np.nan,flood=np.nan,dip=np.nan,ystd=np.nan)

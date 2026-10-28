@@ -39,10 +39,21 @@ import requests.adapters  # noqa: E402  urllib3 pool per host defaults to 10 -> 
 requests.adapters.HTTPAdapter.__init__.__defaults__ = (64, 64, 0, False)   # pool_connections, pool_maxsize, max_retries, pool_block
 
 PROJ = SP.site_dir(os.environ["SC_ROOT"]) if os.environ.get("SC_ROOT") else Path(__file__).resolve().parents[1]   # SC_ROOT = another site (external test)
-REPO = Path(str(__import__("pathlib").Path(__file__).resolve().parents[1]))          # reuse its Earth Engine auth + resource helpers
-sys.path.insert(0, str(REPO / "scripts"))
-from sar_pipeline.auth import init_ee                         # noqa: E402
-from sar_pipeline.resources import detect_resources          # noqa: E402
+# Earth Engine service account (28 Oct: from env, no dependency on another project's folder): EE_KEY_FILE = key json,
+# EE_PROJECT = cloud project; the defaults are the JupyterHub pod's key.
+EE_KEY_FILE = os.environ.get("EE_KEY_FILE", "secrets/ee_service_account.json")
+EE_PROJECT = os.environ.get("EE_PROJECT", __import__("os").environ.get("EE_PROJECT", ""))
+
+
+def init_ee_from_env(high_volume: bool = True):
+    import ee
+    from google.oauth2 import service_account
+    creds = service_account.Credentials.from_service_account_file(EE_KEY_FILE).with_scopes(
+        ["https://www.googleapis.com/auth/earthengine", "https://www.googleapis.com/auth/cloud-platform"])
+    kw = dict(credentials=creds, project=EE_PROJECT)
+    if high_volume:                                   # many computePixels / getInfo calls
+        kw["opt_url"] = "https://earthengine-highvolume.googleapis.com"
+    ee.Initialize(**kw)
 
 # 2025 test season (user, 11 Oct 2026): previous harvest Dec 2024 - Apr 2025 -> regrowth -> standing cane before the
 # 1 Dec 2025 crush (the shared 2025 cane map is dated 2025-11-29). The 2026 season is a second run with other dates.
@@ -59,8 +70,7 @@ S2_DIR = os.environ.get("DL_S2_DIR", "s2")   # e.g. s2_b2 to fetch one missing b
 CRS, RES = "EPSG:32648", 10
 BLOCK = int(os.environ.get("DL_BLOCK", "1024"))   # smaller blocks (e.g. 256) for thin / scattered AOIs
 INSIDE = None                                     # AOI mask of the grid (set in main): blocks without AOI pixels are skipped
-AOI_SHP = Path(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site37.shp")
-CFG = {"_root": str(REPO), "auth": {"key_file": __import__("os").environ.get("EE_KEY_FILE", "secrets/ee_service_account.json"), "project": __import__("os").environ.get("EE_PROJECT", "")}}
+AOI_SHP = Path(os.environ.get("SC_AOI") or PROJ / "data/aoi/aoi_site99.shp")
 
 log = logging.getLogger("download")
 
@@ -248,7 +258,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         handlers=[logging.FileHandler(PROJ / "logs/download.log"), logging.StreamHandler()])
     import ee, pandas as pd
-    init_ee(CFG, high_volume=True)
+    init_ee_from_env(high_volume=True)
     tag = os.environ.get("DL_WORKLOAD_TAG")            # GEE workload tag: compute of this run shows under this label in Cloud Monitoring
     if tag:
         ee.data.setDefaultWorkloadTag(tag); log.info("workload tag %s", tag)
@@ -279,6 +289,11 @@ def main():
             j["out_cs"].parent.mkdir(parents=True, exist_ok=True)
     # network-bound: a few parallel jobs, each fetching its blocks sequentially (Earth Engine allows ~40 concurrent requests)
     workers = int(os.environ.get("DL_WORKERS", "20"))      # network-bound; Earth Engine allows ~40 concurrent requests
+    # 28 Oct: each job holds a full (bands, H, W) array (+ a copy when writing) -> cap the workers by the pod's safe memory
+    # (a 14k x 16k gap grid = ~2.2 GB per S2 file; 8 workers took down a 15 GB pod)
+    from safe_resources import safe_memory_bytes
+    per_job = 3 * 6 * 2 * grid["height"] * grid["width"]                # ~6 uint16 bands, x3 for write copies / cloud layers
+    workers = max(1, min(workers, int(safe_memory_bytes() // per_job)))
     log.info("%d files to download, %d parallel workers", len(pending), workers)
     rows, failed = [], []
     with ThreadPoolExecutor(workers) as pool:

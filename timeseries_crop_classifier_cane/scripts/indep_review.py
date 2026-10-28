@@ -33,9 +33,9 @@ OUT = SP.site_dir(os.environ.get)("OUT_NAME", f"indep_review_{TAG}")
 # design weights stay valid for scoring ANY later map (read the map at the block, weight = stratum px / sampled)
 STRATA = os.environ.get("STRATA", "map")
 CHANGE_N = {"stable_cane": 10, "stable_non": 16, "lost": 7, "new": 7}     # (label, map) = (1,1) (0,0) (1,0) (0,1)
-AOIS = ["site37_2026", "site32_2026", "site44_2026", "site11_2026", "site42_2026",
-        "site24_2026", "site23_2026", "site05_2026", "site38_2026", "site25_2026",
-        "bench_site27_2026", "bench_site15_2026"]
+AOIS = ["site99_2026", "site92_2026", "site116_2026", "site20_2026", "site114_2026",
+        "site64_2026", "site62_2026", "site06_2026", "site102_2026", "site66_2026",
+        "bench_site82_2026", "bench_site26_2026"]
 N_CANE, N_NON, CHIP = 12, 24, 64
 SEED = int(os.environ.get("SEED", "14"))
 EXCLUDE_FROM = [Path(x) for x in os.environ.get("EXCLUDE_FROM", "").split(",") if x]   # earlier reviews' key.csv: keep 300 m away

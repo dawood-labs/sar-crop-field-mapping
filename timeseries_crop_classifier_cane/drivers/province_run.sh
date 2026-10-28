@@ -1,5 +1,5 @@
 #!/bin/bash
-# province13 province (user, 23 Oct 2026): 16 districts (Site23 + site_ns already done), route B = GEE direct read.
+# province13 province (user, 23 Oct 2026): 16 districts (Site62 + site_ns already done), route B = GEE direct read.
 # Lane D (download): one district at a time, smallest first, 8 files x 4 blocks in parallel (~32 GEE requests) -> DOWNLOADED marker.
 # Lanes P1/P2 (process): next downloaded district -> stacks -> S1 15d (2026nov) -> S2 dry -> pheno -> layer 1 (s2on_r2 + Oct rule +
 # recall v5) -> layer 2 (colour v8 = layer2_final) -> S3 upload (raw + outputs, 32 streams, size-verified) -> delete raw + stacks.
@@ -8,9 +8,9 @@ P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P
 export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=crop-province
 S3=s3://$S3_BUCKET/$S3_PREFIX/2026/province13/districts
 # ASC track per district (coverage check 23 Oct): RO099 where it covers >= 98 %, else RO026 (aliased to the model's RO099 names)
-declare -A ASC=([site36]=26 [site48]=26 [site40]=26 [site10]=26 [site26]=99 [site17]=99 [site22]=99 [site43]=26
-  [site31]=99 [site52]=26 [site16]=99 [site28]=26 [site35]=99 [site02]=26 [site21]=99 [site07]=99)
-ORDER="site36 site48 site40 site10 site26 site17 site22 site43 site31 site52 site16 site28 site35 site02 site21 site07"
+declare -A ASC=([site96]=26 [site121]=26 [site110]=26 [site14]=26 [site67]=99 [site30]=99 [site60]=99 [site115]=26
+  [site89]=99 [site149]=26 [site29]=99 [site83]=26 [site95]=99 [site02]=26 [site55]=99 [site10]=99)
+ORDER="site96 site121 site110 site14 site67 site30 site60 site115 site89 site149 site29 site83 site95 site02 site55 site10"
 env_site() { S=$(python $P/scripts/site_paths.py dir ${1}_2026); a=${ASC[$1]}
   export SC_ROOT=$S SC_AOI=$S/data/aoi/aoi.shp DL_S1_TRACKS="164:DESCENDING,$a:ASCENDING" S1_TRACKS="RO164_DES,RO0${a}_ASC"
   [ $a = 99 ] && export S1_TRACKS="RO164_DES,RO099_ASC" S1_TRACK_ALIAS="" || export S1_TRACK_ALIAS="RO026_ASC:RO099_ASC"; }

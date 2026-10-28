@@ -14,6 +14,21 @@ Areas are always in **acres** (1 pixel = 100 m² = 0.0247 acre), computed in the
 
 ---
 
+## 0. Run a whole province (resumable, Airflow-ready)
+
+```
+pip install -r requirements.txt
+export AWS_...=...  EE_KEY_FILE=<service-account json or s3:// URI>
+PYTHONPATH=scripts python -m pipeline run --province <Province> --s3-root s3://<bucket>/<prefix>          # districts + gaps
+PYTHONPATH=scripts python -m pipeline run --province <Province> --units grid --grid-km 20 --fd true      # square tiles + FD
+```
+The province name is the only required input. State lives on S3 (`<prefix>/<year>/<Province>/_plan`, `.../_state`), so a
+restarted pod skips finished units and resumes the rest. One task per DAG step: `prepare`, `plan` (JSON task list),
+`site --site <unit>`, `province`, `fd --version <v>`, `status`. Parameters, S3 layout, requirements and tests:
+[docs/PIPELINE.md](docs/PIPELINE.md). Quick tests: `PYTHONPATH=scripts python -m pipeline.test_pipeline`.
+
+---
+
 ## 1. The idea in steps
 
 1. **Download** (Google Earth Engine, direct `computePixels` reads onto a fixed 10 m grid): every Sentinel-1 VV / VH pass of one

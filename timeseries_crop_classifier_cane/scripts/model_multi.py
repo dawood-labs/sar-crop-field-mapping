@@ -1,6 +1,6 @@
 """Standing-cane model trained on SEVERAL districts (2025 season), tested on a district it never saw.
 
-Why: the model trained on the first AOI alone over-predicted cane by 37 % in a new district (Site12):
+Why: the model trained on the first AOI alone over-predicted cane by 37 % in a new district (Site21):
 the non-cane there (cassava, upland crops, other rice systems) looks different. Training on more districts teaches
 the model more kinds of non-cane.
 Train sites (each with its own label QC, `label_qc.py`): first AOI (repo root) + sites listed in TRAIN_SITES.
@@ -32,7 +32,7 @@ import site_paths as SP
 PROJ = M.PROJ
 OUT = PROJ / "data/model/multi2025"
 FS = os.environ.get("FEATURE_SET", "VVVH@202501a")
-TRAIN_SITES = os.environ.get("TRAIN_SITES", "site12,site01").split(",")
+TRAIN_SITES = os.environ.get("TRAIN_SITES", "site21,site01").split(",")
 N_PER_CLASS, SEED = 100_000, 0
 T0 = time.time()
 
@@ -42,7 +42,7 @@ def log(*a):
 
 
 def site_paths(name):
-    if name == "site37":
+    if name == "site99":
         return PROJ, PROJ / "data/features/s1_15d_2025.tif"
     root = SP.site_dir(name)
     return root, root / "data/features/s1_15d_2025jan.tif"
@@ -73,7 +73,7 @@ def site_samples(name, k):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    sites = ["site37"] + [s for s in TRAIN_SITES if s]
+    sites = ["site99"] + [s for s in TRAIN_SITES if s]
     parts = [site_samples(s, k) for k, s in enumerate(sites)]
     cols = parts[0][3]
     assert all(p[3] == cols for p in parts), "feature columns differ between sites"

@@ -3,7 +3,7 @@
 # recipe as the districts (route B download -> stacks -> features -> layer 1 -> layer 2 -> S3 upload of raw + stacks + outputs).
 # Gap AOIs are thin / scattered, so download.py uses 256 px blocks and skips blocks without AOI pixels.
 # usage: AWS_ENV=<creds file> setsid nohup bash drivers/gap_run.sh "site:DES:ASC[:alias]" ... > logs/gap_run.log 2>&1 &
-#   e.g. "site51_2026:164:99" "site50_2026:164:26:a" "site19_2026:62:172:a"   (a = alias tracks to the model's)
+#   e.g. "site134_2026:164:99" "site124_2026:164:26:a" "site35_2026:62:172:a"   (a = alias tracks to the model's)
 P="$(cd "$(dirname "$0")/.." && pwd)"; cd $P
 export GDAL_NUM_THREADS=ALL_CPUS DL_START=2025-11-01 DL_END=2026-10-15 DL_WORKLOAD_TAG=standing-cane-gaps DL_BLOCK=256 DL_S2_QA="" DL_CS_BANDS=cs_cdf   # only what the model + review images need
 for spec in "$@"; do IFS=: read n des asc al <<< "$spec"
@@ -14,21 +14,27 @@ for spec in "$@"; do IFS=: read n des asc al <<< "$spec"
   echo "=== $n ($prov) DES $D ASC $A alias '$S1_TRACK_ALIAS' $(date +%H:%M)"; t0=$(date +%s)
   if [ ! -f $S/DOWNLOADED ]; then ok=1
     for only in s1 s2; do for try in 1 2 3; do
-        DL_WORKERS=8 DL_BLOCK_THREADS=4 python -u scripts/download.py --only $only > $S/logs/download_$only.log 2>&1 && grep -q " 0 failed" $S/logs/download_$only.log && break
+        while [ $(df --output=avail -BG "$P" | tail -1 | tr -dc 0-9) -lt 35 ]; do sleep 60; done; DL_WORKERS=8 DL_BLOCK_THREADS=4 python -u scripts/download.py --only $only > $S/logs/download_$only.log 2>&1 && grep -q " 0 failed" $S/logs/download_$only.log && break
         echo "$n $only try $try failed"; done; grep -q " 0 failed" $S/logs/download_$only.log || ok=0; done
     [ $ok = 1 ] && touch $S/DOWNLOADED || { echo "GAVE UP $n"; continue; }
     echo "DOWNLOADED $n in $(( ($(date +%s)-t0)/60 )) min, $(du -sh $S/data/raw | cut -f1)"; fi
-  if [ ! -f $S/data/model/layer2_final/class3_2026.tif ]; then
-    { python -u scripts/build_stacks.py && python -u scripts/s1_composites.py 2026nov && python -u scripts/s2_dry_features.py 2026 $S \
-      && python -u scripts/pheno_features.py 2026 $S \
-      && MODEL=data/model/s2on_r2/model.joblib OUT_TAG=s2on_r2 FEATURES_FILE=s1_15d_2026nov.tif YEAR=2026 python scripts/apply_site.py $S \
-      && python scripts/oct_bare_rule.py s2on_r2 s2on_r2_oct $S && RULE=5 python scripts/recall_rule.py s2on_r2_oct s2on_r2_oct_rn5 $S \
-      && COLOUR_TAG=v8 OUT_TAG=layer2_final SMOOTH=9 LAYER1=s2on_r2_oct_rn5 python scripts/colour_multi.py apply $n; } > $S/logs/process.log 2>&1 \
-      || { echo "FAILED $n (see $S/logs/process.log)"; continue; }
-    echo "PROCESSED $n in $(( ($(date +%s)-t0)/60 )) min"; fi
+  # big sparse gap grids exceed the pod memory in the whole-band steps -> stacks once, then split into tile sub-sites (split_site.py)
+  [ -f $S/data/stacks/stacks.csv ] || python -u scripts/build_stacks.py > $S/logs/stacks.log 2>&1 || { echo "FAILED stacks $n"; continue; }
+  [ -f $S/tiles.txt ] || python -u scripts/split_site.py $n > $S/logs/split.log 2>&1 || { echo "FAILED split $n"; continue; }
+  okt=1; for tn in $(cat $S/tiles.txt); do T=$(python scripts/site_paths.py dir $tn); export SC_ROOT=$T SC_AOI=$T/data/aoi/aoi.shp
+    [ -f $T/data/model/layer2_final/class3_2026.tif ] && continue
+    { python -u scripts/s1_composites.py 2026nov && python -u scripts/s2_dry_features.py 2026 $T \
+      && python -u scripts/pheno_features.py 2026 $T \
+      && MODEL=data/model/s2on_r2/model.joblib OUT_TAG=s2on_r2 FEATURES_FILE=s1_15d_2026nov.tif YEAR=2026 python scripts/apply_site.py $T \
+      && python scripts/oct_bare_rule.py s2on_r2 s2on_r2_oct $T && RULE=5 python scripts/recall_rule.py s2on_r2_oct s2on_r2_oct_rn5 $T \
+      && COLOUR_TAG=v8 OUT_TAG=layer2_final SMOOTH=9 LAYER1=s2on_r2_oct_rn5 python scripts/colour_multi.py apply $tn; } > $T/logs/process.log 2>&1 \
+      && echo "PROCESSED $tn $(date +%H:%M)" || { echo "FAILED $tn (see $T/logs/process.log)"; okt=0; }
+  done; export SC_ROOT=$S SC_AOI=$S/data/aoi/aoi.shp; [ $okt = 1 ] || continue
+  echo "PROCESSED $n in $(( ($(date +%s)-t0)/60 )) min"
   B=s3://$S3_BUCKET/$S3_PREFIX/2026/$prov/districts/$n/data
-  ( source ${AWS_ENV:?}; for s in raw stacks aoi grid manifest model features; do aws s3 sync --only-show-errors $S/data/$s $B/$s; done
-    aws s3 ls --recursive $B/ > $S/logs/s3_list.txt ) && python - "$S" <<'EOF' && { rm -rf $S/data/raw $S/data/stacks; touch $S/UPLOADED; echo "UPLOADED + cleaned $n $(date +%H:%M)"; } || echo "S3 UPLOAD/VERIFY FAILED $n (raw kept)"
+  ( source ${AWS_ENV:?}; for s in raw stacks aoi grid manifest model features; do [ -d $S/data/$s ] && aws s3 sync --only-show-errors $S/data/$s $B/$s; done
+    for tn in $(cat $S/tiles.txt); do T=$(python scripts/site_paths.py dir $tn); aws s3 sync --only-show-errors $T/data ${B%/$n/data}/$tn/data --exclude "stacks/*"; done
+    aws s3 ls --recursive $B/ > $S/logs/s3_list.txt ) && python - "$S" <<'EOF' && { rm -rf $S/data/raw $S/data/stacks; for tn in $(cat $S/tiles.txt); do rm -rf $(python scripts/site_paths.py dir $tn)/data/stacks; done; touch $S/UPLOADED; echo "UPLOADED + cleaned $n $(date +%H:%M)"; } || echo "S3 UPLOAD/VERIFY FAILED $n (raw kept)"
 import os, sys
 S = sys.argv[1]; r = {}
 for l in open(f"{S}/logs/s3_list.txt"):

@@ -83,9 +83,6 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     g = groups()
     # each worker holds one full stack in memory; size the pool from the free RAM (container-aware)
-    import sys; sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from sar_pipeline.resources import detect_resources
-    res = detect_resources()
     with rasterio.open(next(iter(g.values()))[3][0][1]) as r:
         px = r.width * r.height
     def done(name, items):                                   # stack already holds every date -> no memory needed
@@ -100,10 +97,10 @@ def main():
         return len(v[3]) * px * item * 2
     todo = {k: v for k, v in g.items() if not done(k, v[3])}
     biggest = max((need(v) for v in todo.values()), default=1)   # size workers by the stacks still to build
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from safe_resources import safe_memory_bytes             # size by the pod's memory REQUEST, not the free RAM
-    workers = max(1, min(res.cpus, len(g), int(safe_memory_bytes() // biggest)))
-    print(f"{len(g)} stacks, {workers} workers ({res.describe()})", flush=True)
+    import sys; sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import safe_resources as R                               # size by the pod's memory REQUEST, not the free RAM
+    workers = max(1, min(R.cpus(), len(g), int(R.safe_memory_bytes() // biggest)))
+    print(f"{len(g)} stacks, {workers} workers ({R.describe()})", flush=True)
     with ThreadPoolExecutor(workers) as pool:                  # GDAL releases the GIL while (de)compressing
         rows = list(pool.map(lambda kv: build(*kv), g.items()))
     pd.DataFrame(rows).sort_values("name").to_csv(OUT / "stacks.csv", index=False)

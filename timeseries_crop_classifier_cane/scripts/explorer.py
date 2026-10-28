@@ -28,23 +28,23 @@ PROJ = Path(__file__).resolve().parents[1]
 ST, RAIN = PROJ / "data/stacks", PROJ / "data/rain"
 TRACK_COLORS = {"RO164_DES": "#1f77b4", "RO099_ASC": "#d62728"}
 SEASON = 2025
-SITE_2026 = SP.site_dir("site37_2026")
+SITE_2026 = SP.site_dir("site99_2026")
 GRID, SITE_ROOT = PROJ / "data/grid/index.tif", PROJ
 
 
 def use_site(site, year=2026):
-    """Any district folder under sites/ (e.g. "site32_2026"), or "site37" for the first AOI. Grid / pixel ids =
+    """Any district folder under sites/ (e.g. "site92_2026"), or "site99" for the first AOI. Grid / pixel ids =
     <site>/data/grid/index.tif. Call before load_pixel()."""
     global SEASON, ST, FEATURES, QC, GRID, SITE_ROOT
     SEASON = int(year)
-    if site not in ("site37", None) and not (SP.site_dir(site)).exists():
-        if (SP.site_dir(f"{site}_{year}")).exists():          # "site32" -> "site32_2026"
+    if site not in ("site99", None) and not (SP.site_dir(site)).exists():
+        if (SP.site_dir(f"{site}_{year}")).exists():          # "site92" -> "site92_2026"
             site = f"{site}_{year}"
         else:
             opts = sorted(x.name for x in SP.all_sites() if (x / "data/grid/index.tif").exists())
-            raise ValueError(f"unknown SITE {site!r}; choose one of: site37, " + ", ".join(opts))
-    SITE_ROOT = PROJ if site in ("site37", None) else SP.site_dir(site)
-    if site == "site37" and SEASON == 2026:
+            raise ValueError(f"unknown SITE {site!r}; choose one of: site99, " + ", ".join(opts))
+    SITE_ROOT = PROJ if site in ("site99", None) else SP.site_dir(site)
+    if site == "site99" and SEASON == 2026:
         SITE_ROOT = SITE_2026
     ST, QC = SITE_ROOT / "data/stacks", SITE_ROOT / "data/labels/cane2025_qc.tif"
     FEATURES = sorted((SITE_ROOT / "data/features").glob("s1_15d_*.tif"))
@@ -54,7 +54,7 @@ def use_site(site, year=2026):
 
 
 def use_season(year):
-    """2025 (default, first AOI data/) or 2026 (sites/site37_2026: S1 Jan - Oct 2026, S2 chips Nov 2025 - Oct 2026,
+    """2025 (default, first AOI data/) or 2026 (sites/site99_2026: S1 Jan - Oct 2026, S2 chips Nov 2025 - Oct 2026,
     2026 label QC and the 2026 model maps). Call before load_pixel()."""
     global SEASON, ST, FEATURES, QC, GRID, SITE_ROOT
     SEASON = int(year)

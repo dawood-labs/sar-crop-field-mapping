@@ -2,9 +2,9 @@
 
 The model was trained on 2025 half-months 2025-01a .. 2025-10a; the 2026 composites cover the same half-months one
 year later, so band names are shifted by one year (2026MMx -> 2025MMx) before the column check.
-Inputs : sites/site37_2026/data/features/s1_15d_2026jan.tif, data/features/s1_15d_2025.tif (2025, same grid),
+Inputs : sites/site99_2026/data/features/s1_15d_2026jan.tif, data/features/s1_15d_2025.tif (2025, same grid),
          data/model/multi2025/model.joblib (MODEL to override), data/labels/cane2025_labels.tif (2025 map, AOI mask)
-Outputs: sites/site37_2026/data/model/<tag>/
+Outputs: sites/site99_2026/data/model/<tag>/
            cane_prob_2026.tif, cane_map_2026.tif     p x 100 and 1 / 0 (255 outside AOI) (+ .qml)
            cane_prob_2025.tif, cane_map_2025.tif     the same model on 2025 (like-for-like change, + .qml)
            change_2025_2026.tif                      0 none both, 1 cane both, 2 cane 2025 only (lost), 3 cane 2026 only (new)
@@ -30,7 +30,7 @@ import qgis_style as Q  # noqa: E402
 import site_paths as SP
 
 PROJ = M.PROJ
-SITE = SP.site_dir("site37_2026")
+SITE = SP.site_dir("site99_2026")
 MODEL = Path(os.environ.get("MODEL") or PROJ / "data/model/multi2025/model.joblib")
 ACRE = 100 / 4046.8564224
 FEAT = os.environ.get("FEAT", "jan")                        # "nov": composites s1_15d_2025nov / s1_15d_2026nov

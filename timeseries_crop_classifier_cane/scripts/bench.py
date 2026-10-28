@@ -24,7 +24,7 @@ import rasterio  # noqa: E402
 import site_paths as SP
 
 PROJ = Path(__file__).resolve().parents[1]
-SITES = ["bench_site27_2026", "bench_site15_2026"]
+SITES = ["bench_site82_2026", "bench_site26_2026"]
 OUT = PROJ / "sites/benchmark"
 N_PER, SEED, N_USER = 60, 42, 20
 

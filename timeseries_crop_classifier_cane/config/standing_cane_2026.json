@@ -1,0 +1,32 @@
+{
+ "_comment": "Defaults of every run parameter (see scripts/pipeline/config.py Params). Override per run with PIPELINE_<NAME> env or CLI flags. {inputs_root} in shared_inputs = where the models / source tables are read (default: the production root).",
+ "units": "districts",
+ "grid_km": 20,
+ "fd": false,
+ "fd_versions": "v1,1ac,1p5ac,2ac",
+ "year": "2026",
+ "season_start": "2025-11-01",
+ "season_end": "2026-10-15",
+ "s3_root": "s3://<bucket>/<prefix>",
+ "min_free_gb": 35,
+ "ee_project": "<earth-engine-project>",
+ "workload_tag": "crop-map",
+ "download_env": {
+  "DL_S2_QA": "",
+  "DL_CS_BANDS": "cs_cdf",
+  "DL_WORKERS": 8,
+  "DL_BLOCK_THREADS": 4
+ },
+ "gap_download_env": {
+  "DL_BLOCK": 256,
+  "DL_CLOUD_BATCH": 10,
+  "DL_AOI_SIMPLIFY": 100
+ },
+ "shared_inputs": {
+  "data/model/s2on_r2/model.joblib": "{inputs_root}/data/model/s2on_r2/model.joblib",
+  "sites/layer2/colour_model_v8.joblib": "{inputs_root}/shared/layer2/colour_model_v8.joblib",
+  "data/source/districts.parquet": "{inputs_root}/data/source/districts.parquet",
+  "data/source/provinces.parquet": "{inputs_root}/data/source/provinces.parquet"
+ },
+ "inputs_root": "s3://<bucket>/<prefix>"
+}

@@ -79,7 +79,7 @@ def main():
     Q.paletted(out / f"cane_map_{yr}.tif", Q.MAP_CLASSES)
     Q.paletted(out / f"map_vs_label_{yr}.tif", Q.COMPARE_CLASSES)
     y, pp, e = lab[ok], p[ok] / 100, edge[ok]
-    res = {"site": site.name, "model": str(model_path), "train_sites": J.get("train_sites", ["site37"]), "feature_set": J["feature_set"], "threshold": J["threshold"],
+    res = {"site": site.name, "model": str(model_path), "train_sites": J.get("train_sites", ["site99"]), "feature_set": J["feature_set"], "threshold": J["threshold"],
            "px_scored": int(ok.sum()), "px_no_data": int(((lab != 255) & (cane == 255)).sum())}
     for scope, s in (("raw_all", np.ones(len(y), bool)), ("raw_interior_edge>=2", e >= 2)):
         if labf.exists() and s.sum() > 0 and len(np.unique(y[s])) == 2:
