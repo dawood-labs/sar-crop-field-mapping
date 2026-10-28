@@ -171,6 +171,8 @@ def save_plan(prov: Province, p: Params):
     from . import s3state as S3
     body = prov.to_json(p)
     S3.write_json(plan_uri(p), body)
+    if os.environ.get("PIPELINE_S3_ROOT"):                          # a test / scratch root: never overwrite the local copy
+        return
     out = CONFIG_DIR / "provinces" / f"{prov.name}.json"          # local copy for people reading the repo / the pod
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp"); tmp.write_text(json.dumps(body, indent=1)); os.replace(tmp, out)

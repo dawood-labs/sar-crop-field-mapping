@@ -27,6 +27,7 @@ import site_paths as SP          # noqa: E402
 UPLOAD_PROCESS = ["data/stacks", "data/aoi", "data/grid", "data/manifest", "data/model", "data/features"]
 UPLOAD_DOWNLOAD = ["data/raw", "data/aoi", "data/grid", "data/manifest"]
 LAYER2 = "data/model/layer2_final/class3_2026.tif"
+DONE_LOCAL = "data/model/.process_complete"
 LAYER1_LOCAL, COLOUR_LOCAL = "data/model/s2on_r2/model.joblib", "sites/layer2/colour_model_v8.joblib"
 
 
@@ -116,6 +117,53 @@ def process_cmds(p: Params) -> list[str]:
     ]
 
 
+def steps(p: Params) -> list[tuple[str, str, list[str]]]:
+    """(name, command, outputs) of the process stage: every step's outputs go to S3 with their own marker
+    (<prefix>/_state/step_<name>.json), so a new pod resumes at the first unfinished step (user, 28 Oct 2026)."""
+    c = process_cmds(p)
+    return [("stacks", "python -u scripts/build_stacks.py", ["data/stacks"]),
+            ("s1_15d", c[0], ["data/features/s1_15d_2026nov*"]),
+            ("s2_dry", c[1], ["data/features/s2_dry_2026*"]),
+            ("pheno", c[2], ["data/features/pheno_2026*"]),
+            ("layer1", c[3], ["data/model/s2on_r2"]),
+            ("oct_rule", c[4], ["data/model/s2on_r2_oct"]),
+            ("recall_rule", c[5], ["data/model/s2on_r2_oct_rn5"]),
+            ("layer2", c[6], ["data/model/layer2_final"])]
+
+
+def _expand(root: Path, pats: list[str]) -> list[str]:
+    out = []
+    for pat in pats:
+        out += [str(x.relative_to(root)) for x in sorted(root.glob(pat))] if "*" in pat else ([pat] if (root / pat).exists() else [])
+    return out
+
+
+def run_steps(p: Params, root: Path, name: str, env: dict, prefix: str):
+    """Each step: done on S3 -> skipped (its outputs fetched from S3 only if a later step needs them on this pod);
+    else run -> upload its outputs (size-verified) -> marker. A killed step simply runs again."""
+    lf = root / "logs/process.log"
+    todo = [(n, c, o) for n, c, o in steps(p) if p.forced("process") or not S3.Stage(prefix, f"step_{n}").done()]
+    if not todo:
+        return
+    first = [n for n, *_ in steps(p)].index(todo[0][0])
+    need = [o for _, _, outs in steps(p)[:first] for o in outs]           # outputs of the finished steps the rest reads
+    import fnmatch
+    have = S3.listing(prefix)
+    want = []                                                            # S3 keys of those outputs (+ grid / aoi / manifest)
+    for pat in need + ["data/grid", "data/aoi", "data/manifest"]:
+        want += [k for k in have if (fnmatch.fnmatch(k, pat) if "*" in pat else k.startswith(pat + "/"))]
+    missing = [k for k in want if not (root / k).exists() or (root / k).stat().st_size != have[k]]
+    if missing:
+        n = S3.download_prefix(prefix, root, only=missing)
+        log(f"process: resume at step '{todo[0][0]}' - {n} files of the finished steps fetched from S3")
+    for n, c, outs in todo:
+        t1 = time.time()
+        run(c.format(S=root, name=name), env, lf)
+        S3.Stage(prefix, f"step_{n}").mark(S3.upload_dir(root, prefix, _expand(root, outs)), t1)
+        log(f"process: step {n} done in {time.time() - t1:.0f} s (on S3)")
+    upload_logs(root, prefix)
+
+
 def site_env(p: Params, site: Site, root: Path) -> dict:
     env = dict(os.environ)
     env.update({k: str(v) for k, v in p.extra["download_env"].items()})
@@ -131,6 +179,8 @@ def site_env(p: Params, site: Site, root: Path) -> dict:
 def stage_download(p: Params, site: Site, root: Path, env: dict, prefix: str):
     st = S3.Stage(prefix, "download")
     if st.done() and not p.forced("download"):
+        if S3.Stage(prefix, "step_stacks").done() and not p.forced("process"):
+            log("download: done; stacks already on S3 -> raw not needed on this pod"); return
         if not any((root / "data/raw").rglob("*.tif")):
             wait_for_disk(p)
             n = S3.download_prefix(prefix, root, only=UPLOAD_DOWNLOAD)
@@ -158,8 +208,10 @@ def stage_download(p: Params, site: Site, root: Path, env: dict, prefix: str):
 
 def process_one(p: Params, root: Path, name: str, env: dict):
     lf = root / "logs/process.log"
+    (root / DONE_LOCAL).unlink(missing_ok=True)
     for c in process_cmds(p):
         run(c.format(S=root, name=name), env, lf)
+    (root / DONE_LOCAL).write_text(time.strftime("%Y-%m-%d %H:%M:%S"))   # all steps finished (a killed run leaves no sentinel)
 
 
 def stage_process(p: Params, site: Site, root: Path, env: dict, prefix: str):
@@ -168,14 +220,14 @@ def stage_process(p: Params, site: Site, root: Path, env: dict, prefix: str):
     lf = root / "logs/process.log"
     if p.forced("process"):                     # redo: drop the outputs so every step runs again
         shutil.rmtree(root / "data/model", ignore_errors=True)
-    if not (root / "data/stacks/stacks.csv").exists():
-        run("python -u scripts/build_stacks.py", env, lf)
     tiles = []
     if site.kind != "gap":
-        if not (root / LAYER2).exists():
-            process_one(p, root, site.name, env)
-        files = S3.upload_dir(root, prefix, UPLOAD_PROCESS)
-    else:                                       # gap: whole-band steps exceed the pod memory on big sparse grids -> tiles
+        run_steps(p, root, site.name, env, prefix)
+        files = S3.upload_dir(root, prefix, UPLOAD_PROCESS) if (root / "data/stacks").exists() else \
+            {k: v for k, v in S3.listing(prefix).items() if k.startswith(tuple(UPLOAD_PROCESS))}
+    else:
+        if not (root / "data/stacks/stacks.csv").exists():
+            run("python -u scripts/build_stacks.py", env, lf)                                       # gap: whole-band steps exceed the pod memory on big sparse grids -> tiles
         if not (root / "tiles.txt").exists():
             run(f"python -u scripts/split_site.py {site.name}", env, root / "logs/split.log")
         tiles = (root / "tiles.txt").read_text().split()
@@ -187,7 +239,7 @@ def stage_process(p: Params, site: Site, root: Path, env: dict, prefix: str):
                 continue
             t1 = time.time()
             tenv = dict(env, SC_ROOT=str(T), SC_AOI=str(T / "data/aoi/aoi.shp"))
-            if not (T / LAYER2).exists():
+            if not (T / DONE_LOCAL).exists():
                 process_one(p, T, tn, tenv)
             tst.mark(S3.upload_dir(T, tprefix, [s for s in UPLOAD_PROCESS if s != "data/stacks"]), t1, parent=site.name)
             log(f"process: tile {tn} done")
